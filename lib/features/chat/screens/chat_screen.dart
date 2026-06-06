@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../providers/chat_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -66,12 +67,18 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                           : Colors.grey.shade200,
                       borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Text(
-                      msg.text,
-                      style: TextStyle(
-                        color: msg.isUser ? Colors.white : Colors.black87,
-                      ),
-                    ),
+                    child: msg.isUser 
+                      ? Text(
+                          msg.text,
+                          style: const TextStyle(color: Colors.white),
+                        )
+                      : MarkdownBody(
+                          data: msg.text,
+                          styleSheet: MarkdownStyleSheet(
+                            p: const TextStyle(color: Colors.black87),
+                            listBullet: const TextStyle(color: Colors.black87),
+                          ),
+                        ),
                   ),
                 );
               },
