@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/expense_model.dart';
+import '../../../core/services/widget_service.dart';
 
 final expensesProvider = StreamProvider.family<List<Expense>, String>((ref, groupId) {
   return FirebaseFirestore.instance
@@ -43,6 +44,9 @@ class ExpenseService {
     );
 
     await docRef.set(newExpense.toMap());
+    
+    // Update Widget
+    await _updateWidgetForGroup(expense.groupId);
   }
 
   Future<void> updateExpense(Expense expense) async {
@@ -53,6 +57,9 @@ class ExpenseService {
         .doc(expense.id);
         
     await docRef.update(expense.toMap());
+    
+    // Update Widget
+    await _updateWidgetForGroup(expense.groupId);
   }
 
   Future<void> deleteExpense(String groupId, String expenseId) async {
@@ -63,5 +70,22 @@ class ExpenseService {
         .doc(expenseId);
         
     await docRef.delete();
+    
+    // Update Widget
+    await _updateWidgetForGroup(groupId);
+  }
+
+  Future<void> _updateWidgetForGroup(String groupId) async {
+    try {
+      final groupDoc = await _firestore.collection('groups').doc(groupId).get();
+      if (!groupDoc.exists) return;
+      
+      final members = List<String>.from(groupDoc.data()?['members'] ?? []);
+      if (members.isNotEmpty) {
+        await WidgetService.updateWidgetFromUid(members.first);
+      }
+    } catch (e) {
+      // Ignore widget update errors
+    }
   }
 }

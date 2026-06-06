@@ -10,6 +10,7 @@ import 'core/layouts/main_layout_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/services/notification_service.dart';
+import 'core/services/auto_track_service.dart';
 import 'core/widgets/biometric_wrapper.dart';
 
 void main() async {
@@ -24,6 +25,10 @@ void main() async {
   await notificationService.scheduleDailyReminder();
 
   final prefs = await SharedPreferences.getInstance();
+  
+  if (prefs.getBool('auto_track') == true) {
+    await AutoTrackService().init();
+  }
 
   runApp(
     ProviderScope(

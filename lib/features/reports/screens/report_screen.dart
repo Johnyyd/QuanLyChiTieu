@@ -159,7 +159,11 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
               Expanded(
                 child: selectedGroupId == null
                   ? const SizedBox()
-                  : _AdvancedReportChart(groupId: selectedGroupId!, timeRange: _timeRange),
+                  : _AdvancedReportChart(
+                      groupId: selectedGroupId!, 
+                      timeRange: _timeRange,
+                      members: groups.firstWhere((g) => g.id == selectedGroupId!).members,
+                    ),
               ),
             ],
           );
@@ -174,8 +178,13 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
 class _AdvancedReportChart extends ConsumerWidget {
   final String groupId;
   final String timeRange;
+  final List<String> members;
 
-  const _AdvancedReportChart({required this.groupId, required this.timeRange});
+  const _AdvancedReportChart({
+    required this.groupId, 
+    required this.timeRange,
+    required this.members,
+  });
 
   List<Expense> _filterExpenses(List<Expense> expenses) {
     final now = DateTime.now();
@@ -207,7 +216,9 @@ class _AdvancedReportChart extends ConsumerWidget {
         double totalIncome = 0;
         double totalExpense = 0;
         final Map<String, double> categoryTotals = {};
-        final Map<String, double> userTotals = {};
+        final Map<String, double> userTotals = {
+          for (var member in members) member: 0.0
+        };
 
         for (var e in expenses) {
           if (e.type == 'income') {

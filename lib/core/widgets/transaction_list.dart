@@ -9,7 +9,7 @@ import '../../features/auth/providers/user_provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants/category_constants.dart';
-import 'package:flutter_slidable/flutter_slidable.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class TransactionList extends ConsumerStatefulWidget {
   final List<Expense> expenses;
@@ -402,7 +402,7 @@ class _TransactionListState extends ConsumerState<TransactionList> {
                     }),
                   ],
                 ),
-              );
+              ).animate().fade(duration: 400.ms).slideY(begin: 0.1, duration: 400.ms);
             },
           ),
       ],

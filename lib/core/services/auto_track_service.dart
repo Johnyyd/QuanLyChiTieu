@@ -1,11 +1,13 @@
 import 'dart:developer';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:notification_listener_service/notification_event.dart';
 import 'package:notification_listener_service/notification_listener_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../features/expenses/models/expense_model.dart';
 import '../providers/settings_provider.dart';
+import '../services/widget_service.dart';
 
 class AutoTrackService {
   static final AutoTrackService _instance = AutoTrackService._internal();
@@ -32,7 +34,13 @@ class AutoTrackService {
   Future<bool> requestPermission() async {
     final bool status = await NotificationListenerService.isPermissionGranted();
     if (!status) {
-      return await NotificationListenerService.requestPermission();
+      try {
+        const platform = MethodChannel('com.example.quanlychitieu/settings');
+        await platform.invokeMethod('openNotificationSettings');
+      } catch (e) {
+        log("Exception opening settings: $e");
+      }
+      return false; // Trả về false để UI biết chưa có quyền, người dùng phải bật và gạt công tắc lại.
     }
     return true;
   }
@@ -50,6 +58,7 @@ class AutoTrackService {
     final groupsSnapshot = await FirebaseFirestore.instance
         .collection('groups')
         .where('members', arrayContains: user.uid)
+        .where('isPersonal', isEqualTo: true)
         .limit(1)
         .get();
 
@@ -66,9 +75,11 @@ class AutoTrackService {
       // Match negative amounts or payments
       if (content.toLowerCase().contains('thanh toán') || 
           content.toLowerCase().contains('trừ') || 
+          content.toLowerCase().contains('ps no') ||
+          content.toLowerCase().contains('phát sinh nợ') ||
           content.contains('-')) {
         
-        final regex = RegExp(r'(?:-|trừ|thanh toán)[\s]*([0-9.,]+)[\s]*(?:vnd|đ|d)', caseSensitive: false);
+        final regex = RegExp(r'(?:-|trừ|thanh toán|ps no|phát sinh nợ)[\s:]*([0-9.,]+)[\s]*(?:vnd|vnđ|đ|d)', caseSensitive: false);
         final match = regex.firstMatch(content);
         
         if (match != null && match.group(1) != null) {
@@ -116,5 +127,8 @@ class AutoTrackService {
 
     await expenseRef.set(expense.toMap());
     log("Saved draft expense from $source: $amount");
+    
+    // Update widget
+    await WidgetService.updateWidgetFromUid(userId);
   }
 }

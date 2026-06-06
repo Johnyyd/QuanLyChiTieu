@@ -16,14 +16,31 @@ import '../../settlement/services/settlement_service.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/category_constants.dart';
 import '../../../core/widgets/transaction_list.dart';
+import '../../recurring_expenses/providers/recurring_expense_provider.dart';
+import '../../recurring_expenses/screens/recurring_expenses_screen.dart';
 
-class GroupDetailScreen extends ConsumerWidget {
+class GroupDetailScreen extends ConsumerStatefulWidget {
   final AppGroup group;
 
   const GroupDetailScreen({super.key, required this.group});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<GroupDetailScreen> createState() => _GroupDetailScreenState();
+}
+
+class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Check and process recurring expenses when entering the screen
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(recurringExpenseServiceProvider).checkAndProcessRecurringExpenses(widget.group.id);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final group = widget.group;
     final expensesAsync = ref.watch(expensesProvider(group.id));
     final currentUser = ref.watch(authStateProvider).value;
 
@@ -83,6 +100,13 @@ class GroupDetailScreen extends ConsumerWidget {
                                 color: Colors.white.withValues(alpha: 0.2), // Glassmorphism
                                 borderRadius: BorderRadius.circular(16),
                                 border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -160,7 +184,14 @@ class GroupDetailScreen extends ConsumerWidget {
                 actions: [
                   PopupMenuButton<String>(
                     onSelected: (value) async {
-                      if (value == 'leave_group') {
+                      if (value == 'recurring') {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => RecurringExpensesScreen(groupId: group.id),
+                          ),
+                        );
+                      } else if (value == 'leave_group') {
                         final confirm = await showDialog<bool>(
                           context: context,
                           builder: (dialogContext) => AlertDialog(
@@ -200,6 +231,10 @@ class GroupDetailScreen extends ConsumerWidget {
                       }
                     },
                     itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'recurring',
+                        child: Text('Chi tiêu định kỳ'),
+                      ),
                       const PopupMenuItem<String>(
                         value: 'leave_group',
                         child: Text('Rời nhóm', style: TextStyle(color: Colors.red)),
@@ -419,14 +454,16 @@ class GroupDetailScreen extends ConsumerWidget {
   }
 
   Widget _buildMemberStats(BuildContext context, List<Expense> expenses) {
-    final Map<String, double> userTotalSpent = {};
+    final Map<String, double> userTotalSpent = {
+      for (var member in widget.group.members) member: 0.0
+    };
     for (var e in expenses) {
       if (e.type != 'settlement') {
         userTotalSpent[e.paidBy] = (userTotalSpent[e.paidBy] ?? 0) + e.amount;
       }
     }
 
-    if (userTotalSpent.isEmpty) return const SizedBox.shrink();
+    if (widget.group.members.isEmpty) return const SizedBox.shrink();
 
     final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
     final sortedUsers = userTotalSpent.keys.toList()..sort((a, b) => userTotalSpent[b]!.compareTo(userTotalSpent[a]!));

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../providers/personal_provider.dart';
+import '../../savings/providers/savings_provider.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/models/expense_model.dart';
 import '../../expenses/screens/add_expense_screen.dart';
@@ -10,6 +11,7 @@ import '../../../core/constants/category_constants.dart';
 import '../../../core/widgets/transaction_list.dart';
 import '../../groups/models/group_model.dart';
 import '../../groups/providers/groups_provider.dart';
+import 'package:shimmer/shimmer.dart';
 
 class PersonalScreen extends ConsumerWidget {
   const PersonalScreen({super.key});
@@ -57,7 +59,8 @@ class PersonalScreen extends ConsumerWidget {
               return SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildDashboardCard(context, group.budget, totalIncome, totalExpense, balance, formatter),
+                    _buildDashboardCard(context, group, ref, totalIncome, totalExpense, balance, formatter),
+                    _buildSavingsPreview(context, ref, formatter),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: TransactionList(expenses: expenses, isPersonal: true),
@@ -66,11 +69,11 @@ class PersonalScreen extends ConsumerWidget {
                 ),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => _buildShimmerLoading(),
             error: (e, trace) => Center(child: Text('Lỗi: $e')),
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => _buildShimmerLoading(),
         error: (e, trace) => Center(child: Text('Lỗi: $e')),
       ),
       floatingActionButton: personalGroupAsync.hasValue && personalGroupAsync.value != null
@@ -126,7 +129,8 @@ class PersonalScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDashboardCard(BuildContext context, double? budget, double income, double expense, double balance, NumberFormat formatter) {
+  Widget _buildDashboardCard(BuildContext context, AppGroup group, WidgetRef ref, double income, double expense, double balance, NumberFormat formatter) {
+    final budget = group.budget;
     final colorScheme = Theme.of(context).colorScheme;
     
     return Container(
@@ -196,9 +200,110 @@ class PersonalScreen extends ConsumerWidget {
                   style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
+          ] else ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Ngân sách:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                GestureDetector(
+                  onTap: () => _showBudgetDialog(context, ref, group),
+                  child: const Text(
+                    'Chưa thiết lập (Chạm để thêm)',
+                    style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, decoration: TextDecoration.underline, decorationColor: Colors.white),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: 0,
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white.withValues(alpha: 0.5)),
+                minHeight: 8,
+              ),
+            ),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildSavingsPreview(BuildContext context, WidgetRef ref, NumberFormat formatter) {
+    final savingsAsync = ref.watch(savingsProvider);
+
+    return savingsAsync.when(
+      data: (goals) {
+        if (goals.isEmpty) return const SizedBox.shrink();
+        
+        // Show up to 2 active goals
+        final activeGoals = goals.where((g) => !g.isCompleted).take(2).toList();
+        if (activeGoals.isEmpty) return const SizedBox.shrink();
+
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Mục tiêu tiết kiệm',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface),
+              ),
+              const SizedBox(height: 12),
+              ...activeGoals.map((goal) {
+                final progress = goal.progress;
+                final goalColor = Color(int.parse(goal.color.replaceFirst('#', 'FF'), radix: 16));
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(goal.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '${(progress * 100).toStringAsFixed(1)}%',
+                            style: TextStyle(color: goalColor, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: LinearProgressIndicator(
+                          value: progress,
+                          backgroundColor: goalColor.withValues(alpha: 0.1),
+                          valueColor: AlwaysStoppedAnimation<Color>(goalColor),
+                          minHeight: 8,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(formatter.format(goal.currentAmount), style: TextStyle(color: Colors.grey.shade700, fontSize: 12)),
+                          Text(formatter.format(goal.targetAmount), style: TextStyle(color: Colors.grey.shade500, fontSize: 12)),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              }),
+            ],
+          ),
+        );
+      },
+      loading: () => const SizedBox.shrink(),
+      error: (_, __) => const SizedBox.shrink(),
     );
   }
 
@@ -213,6 +318,38 @@ class PersonalScreen extends ConsumerWidget {
           style: TextStyle(color: color, fontSize: 16, fontWeight: FontWeight.bold),
         ),
       ],
+    );
+  }
+
+  Widget _buildShimmerLoading() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade300,
+      highlightColor: Colors.grey.shade100,
+      child: Column(
+        children: [
+          Container(
+            margin: const EdgeInsets.all(16),
+            height: 200,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              children: List.generate(5, (index) => Container(
+                margin: const EdgeInsets.only(bottom: 16),
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              )),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
