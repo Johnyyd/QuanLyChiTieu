@@ -8,6 +8,8 @@ import '../../expenses/screens/add_expense_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/constants/category_constants.dart';
 import '../../../core/widgets/transaction_list.dart';
+import '../../groups/models/group_model.dart';
+import '../../groups/providers/groups_provider.dart';
 
 class PersonalScreen extends ConsumerWidget {
   const PersonalScreen({super.key});
@@ -19,6 +21,14 @@ class PersonalScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Ví Cá Nhân'),
+        actions: [
+          if (personalGroupAsync.value != null)
+            IconButton(
+              icon: const Icon(Icons.account_balance_wallet),
+              tooltip: 'Thiết lập ngân sách',
+              onPressed: () => _showBudgetDialog(context, ref, personalGroupAsync.value!),
+            ),
+        ],
       ),
       body: personalGroupAsync.when(
         data: (group) {
@@ -47,7 +57,7 @@ class PersonalScreen extends ConsumerWidget {
               return SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildDashboardCard(context, totalIncome, totalExpense, balance, formatter),
+                    _buildDashboardCard(context, group.budget, totalIncome, totalExpense, balance, formatter),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: TransactionList(expenses: expenses, isPersonal: true),
@@ -83,7 +93,40 @@ class PersonalScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildDashboardCard(BuildContext context, double income, double expense, double balance, NumberFormat formatter) {
+  void _showBudgetDialog(BuildContext context, WidgetRef ref, AppGroup group) {
+    final controller = TextEditingController(text: group.budget?.toStringAsFixed(0) ?? '');
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Thiết lập ngân sách'),
+        content: TextField(
+          controller: controller,
+          keyboardType: TextInputType.number,
+          decoration: const InputDecoration(
+            labelText: 'Ngân sách chi tiêu hàng tháng',
+            suffixText: 'đ',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Hủy')),
+          ElevatedButton(
+            onPressed: () async {
+              final budgetText = controller.text.replaceAll(RegExp(r'[^0-9]'), '');
+              final budget = budgetText.isNotEmpty ? double.tryParse(budgetText) : null;
+              
+              await ref.read(groupServiceProvider).updateGroupBudget(group.id, budget);
+              ref.invalidate(personalGroupFutureProvider);
+              if (context.mounted) Navigator.pop(context);
+            },
+            child: const Text('Lưu'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDashboardCard(BuildContext context, double? budget, double income, double expense, double balance, NumberFormat formatter) {
     final colorScheme = Theme.of(context).colorScheme;
     
     return Container(
@@ -121,6 +164,39 @@ class PersonalScreen extends ConsumerWidget {
               _buildStatItem('CHI TIÊU', expense, Colors.redAccent, formatter),
             ],
           ),
+          if (budget != null) ...[
+            const SizedBox(height: 24),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Ngân sách:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                Text(
+                  '${formatter.format(expense)} / ${formatter.format(budget)}',
+                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: LinearProgressIndicator(
+                value: (expense / budget).clamp(0.0, 1.0),
+                backgroundColor: Colors.white.withValues(alpha: 0.2),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  expense > budget ? Colors.redAccent : AppTheme.successColor,
+                ),
+                minHeight: 8,
+              ),
+            ),
+            if (expense > budget)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text(
+                  'Cảnh báo: Đã vượt quá ngân sách!',
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+          ],
         ],
       ),
     );

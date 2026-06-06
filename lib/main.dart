@@ -9,12 +9,20 @@ import 'features/auth/screens/login_screen.dart';
 import 'core/layouts/main_layout_screen.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
+import 'core/services/notification_service.dart';
+import 'core/widgets/biometric_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  
+  final notificationService = NotificationService();
+  await notificationService.init();
+  await notificationService.requestPermissions();
+  await notificationService.scheduleDailyReminder();
+
   final prefs = await SharedPreferences.getInstance();
 
   runApp(
@@ -44,7 +52,7 @@ class MyApp extends ConsumerWidget {
       home: authState.when(
         data: (user) {
           if (user != null) {
-            return const MainLayoutScreen();
+            return const BiometricWrapper(child: MainLayoutScreen());
           }
           return const LoginScreen();
         },

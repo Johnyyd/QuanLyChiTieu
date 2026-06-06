@@ -41,6 +41,11 @@ class GroupService {
     await docRef.set(group.toMap());
   }
 
+  Future<void> updateGroupBudget(String groupId, double? budget) async {
+    final docRef = _firestore.collection('groups').doc(groupId);
+    await docRef.update({'budget': budget});
+  }
+
   Future<void> joinGroup(String groupId, String userId) async {
     final docRef = _firestore.collection('groups').doc(groupId);
     final docSnap = await docRef.get();

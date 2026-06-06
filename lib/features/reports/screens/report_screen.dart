@@ -11,6 +11,7 @@ import '../../auth/providers/user_provider.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import '../../../core/services/export_service.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
@@ -53,31 +54,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         return;
       }
 
-      StringBuffer csvBuffer = StringBuffer();
-      csvBuffer.writeln("Ngày,Loại,Danh mục,Số tiền,Người tạo,Ghi chú");
-      
-      final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-      for (var e in filtered) {
-        String date = dateFormat.format(e.date);
-        String type = e.type == 'income' ? 'Thu' : 'Chi';
-        String category = '"${e.category.replaceAll('"', '""')}"';
-        String amount = e.amount.toString();
-        String paidBy = '"${e.paidBy.replaceAll('"', '""')}"';
-        String note = '"${e.description.replaceAll('"', '""')}"';
-        
-        csvBuffer.writeln("$date,$type,$category,$amount,$paidBy,$note");
-      }
-
-      String csv = csvBuffer.toString();
-      
-      final dir = await getApplicationDocumentsDirectory();
-      final file = File('${dir.path}/bao_cao_chi_tieu_${DateTime.now().millisecondsSinceEpoch}.csv');
-      await file.writeAsString(csv);
-
-      if (context.mounted) {
-        final xfile = XFile(file.path);
-        await Share.shareXFiles([xfile], text: 'Báo cáo chi tiêu');
-      }
+      await ExportService.exportExpensesToCsv(
+        filtered, 
+        fileName: 'bao_cao_chi_tieu_${DateTime.now().millisecondsSinceEpoch}'
+      );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

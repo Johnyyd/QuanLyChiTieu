@@ -4,6 +4,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/theme_provider.dart';
+import '../../../core/providers/settings_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -124,6 +125,62 @@ class ProfileScreen extends ConsumerWidget {
                         ),
                       ),
                       const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Bảo mật', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.shade200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(Icons.fingerprint, color: Theme.of(context).colorScheme.primary),
+                        title: const Text('Khóa ứng dụng (Sinh trắc học)'),
+                        trailing: Switch(
+                          value: ref.watch(settingsProvider).useBiometrics,
+                          onChanged: (value) async {
+                            final success = await ref.read(settingsProvider.notifier).setUseBiometrics(value);
+                            if (!success && value) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Thiết bị không hỗ trợ hoặc xác thực thất bại')),
+                                );
+                              }
+                            }
+                          },
+                          activeColor: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: Icon(Icons.notifications_active, color: Theme.of(context).colorScheme.primary),
+                        title: const Text('Bắt giao dịch qua thông báo (Momo,...)'),
+                        subtitle: const Text('Tự động ghi nhận khi có thông báo trừ tiền', style: TextStyle(fontSize: 12)),
+                        trailing: Switch(
+                          value: ref.watch(settingsProvider).autoTrackEnabled,
+                          onChanged: (value) async {
+                            final success = await ref.read(settingsProvider.notifier).setAutoTrack(value);
+                            if (!success && value) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Không thể kích hoạt tự động theo dõi. Vui lòng cấp quyền Notification.')),
+                                );
+                              }
+                            }
+                          },
+                          activeColor: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
                     ],
                   ),
                 ),

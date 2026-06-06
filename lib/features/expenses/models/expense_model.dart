@@ -10,6 +10,7 @@ class Expense {
   final String? toUserId; // Người nhận nợ (chỉ dùng cho Settle Up)
   final DateTime date;
   final String type; // 'expense' hoặc 'settlement'
+  final bool isConfirmed;
 
   Expense({
     required this.id,
@@ -21,7 +22,34 @@ class Expense {
     this.toUserId,
     required this.date,
     this.type = 'expense',
+    this.isConfirmed = true,
   });
+
+  Expense copyWith({
+    String? id,
+    String? groupId,
+    String? description,
+    double? amount,
+    String? category,
+    String? paidBy,
+    String? toUserId,
+    DateTime? date,
+    String? type,
+    bool? isConfirmed,
+  }) {
+    return Expense(
+      id: id ?? this.id,
+      groupId: groupId ?? this.groupId,
+      description: description ?? this.description,
+      amount: amount ?? this.amount,
+      category: category ?? this.category,
+      paidBy: paidBy ?? this.paidBy,
+      toUserId: toUserId ?? this.toUserId,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      isConfirmed: isConfirmed ?? this.isConfirmed,
+    );
+  }
 
   factory Expense.fromMap(Map<String, dynamic> data, String documentId) {
     return Expense(
@@ -34,6 +62,7 @@ class Expense {
       toUserId: data['toUserId'],
       date: data['date'] != null ? (data['date'] as Timestamp).toDate() : DateTime.now(),
       type: data['type'] ?? 'expense',
+      isConfirmed: data['isConfirmed'] ?? true,
     );
   }
 
@@ -47,6 +76,7 @@ class Expense {
       'toUserId': toUserId,
       'date': Timestamp.fromDate(date),
       'type': type,
+      'isConfirmed': isConfirmed,
     };
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 import '../../features/expenses/models/expense_model.dart';
 import '../../features/expenses/providers/expenses_provider.dart';
 import '../../features/expenses/screens/edit_expense_screen.dart';
@@ -8,8 +9,9 @@ import '../../features/auth/providers/user_provider.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants/category_constants.dart';
+import 'package:flutter_slidable/flutter_slidable.dart';
 
-class TransactionList extends ConsumerWidget {
+class TransactionList extends ConsumerStatefulWidget {
   final List<Expense> expenses;
   final bool isPersonal;
 
@@ -20,10 +22,20 @@ class TransactionList extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<TransactionList> createState() => _TransactionListState();
+}
+
+class _TransactionListState extends ConsumerState<TransactionList> {
+  String _searchQuery = '';
+  String _filterType = 'all';
+  String? _filterCategory;
+  bool _showFilters = false;
+
+  @override
+  Widget build(BuildContext context) {
     final currentUser = ref.watch(authStateProvider).value;
 
-    if (expenses.isEmpty) {
+    if (widget.expenses.isEmpty) {
       return const Center(
         child: Padding(
           padding: EdgeInsets.all(32.0),
@@ -32,9 +44,18 @@ class TransactionList extends ConsumerWidget {
       );
     }
 
+    // Lọc dữ liệu
+    var filteredExpenses = widget.expenses.where((expense) {
+      bool matchesSearch = expense.description.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                           expense.category.toLowerCase().contains(_searchQuery.toLowerCase());
+      bool matchesType = _filterType == 'all' || expense.type == _filterType;
+      bool matchesCategory = _filterCategory == null || expense.category == _filterCategory;
+      return matchesSearch && matchesType && matchesCategory;
+    }).toList();
+
     // Group expenses by date
     final Map<String, List<Expense>> groupedExpenses = {};
-    for (var expense in expenses) {
+    for (var expense in filteredExpenses) {
       final dateStr = DateFormat('yyyy-MM-dd').format(expense.date);
       if (!groupedExpenses.containsKey(dateStr)) {
         groupedExpenses[dateStr] = [];
@@ -45,158 +66,204 @@ class TransactionList extends ConsumerWidget {
     final sortedDates = groupedExpenses.keys.toList()..sort((a, b) => b.compareTo(a));
     final formatter = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
 
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: sortedDates.length,
-      itemBuilder: (context, index) {
-        final dateStr = sortedDates[index];
-        final dayExpenses = groupedExpenses[dateStr]!;
-        
-        double dailyTotal = 0;
-        for (var e in dayExpenses) {
-          if (e.type == 'income') {
-            dailyTotal += e.amount;
-          } else {
-            dailyTotal -= e.amount;
-          }
-        }
+    // Get unique categories for filter dropdown
+    final allCategories = widget.expenses.map((e) => e.category).toSet().toList()..sort();
 
-        final parsedDate = DateTime.parse(dateStr);
-        String dateDisplay;
-        final now = DateTime.now();
-        if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day) {
-          dateDisplay = 'Hôm nay';
-        } else if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day - 1) {
-          dateDisplay = 'Hôm qua';
-        } else {
-          dateDisplay = DateFormat('dd/MM/yyyy').format(parsedDate);
-        }
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Thanh tìm kiếm và nút lọc
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Row(
             children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                  border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      dateDisplay,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Tìm kiếm giao dịch...',
+                    prefixIcon: const Icon(Icons.search),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
                     ),
-                    Text(
-                      formatter.format(dailyTotal),
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: dailyTotal >= 0 ? AppTheme.successColor : Colors.black87,
-                      ),
-                    ),
-                  ],
+                    filled: true,
+                    fillColor: Colors.grey.shade100,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 16),
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _searchQuery = value;
+                    });
+                  },
                 ),
               ),
-              ...dayExpenses.map((expense) {
-                final isIncome = expense.type == 'income';
-                final isSettlement = expense.type == 'settlement';
-                
-                IconData displayIcon = CategoryConstants.getIcon(expense.category);
-                Color displayColor = CategoryConstants.getColor(expense.category);
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () {
+                  setState(() {
+                    _showFilters = !_showFilters;
+                  });
+                },
+                icon: Icon(
+                  _showFilters ? Icons.filter_alt : Icons.filter_alt_outlined,
+                  color: _showFilters ? Theme.of(context).colorScheme.primary : Colors.grey,
+                ),
+                tooltip: 'Bộ lọc',
+                style: IconButton.styleFrom(
+                  backgroundColor: _showFilters ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.1) : Colors.grey.shade100,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ],
+          ),
+        ),
 
-                if (isIncome) {
-                  displayIcon = Icons.monetization_on;
-                  displayColor = AppTheme.successColor;
-                } else if (isSettlement) {
-                  displayIcon = Icons.handshake;
-                  displayColor = Colors.orange;
-                }
-
-                return ListTile(
-                  leading: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: displayColor.withOpacity(0.1),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(displayIcon, color: displayColor),
-                  ),
-                  title: Text(expense.description, style: const TextStyle(fontWeight: FontWeight.w500)),
-                  subtitle: isPersonal ? Text(expense.category) : Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+        // Các tùy chọn bộ lọc (hiển thị khi _showFilters = true)
+        if (_showFilters) ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Loại giao dịch:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      Text(expense.category),
-                      Consumer(
-                        builder: (context, ref, _) {
-                          final userAsync = ref.watch(userProfileProvider(expense.paidBy));
-                          return userAsync.when(
-                            data: (user) {
-                              final label = isIncome ? 'Người thu' : 'Người chi';
-                              return Text(
-                                '$label: ${user?.name ?? 'Không rõ'}',
-                                style: const TextStyle(fontSize: 12, color: AppTheme.secondaryColor),
-                              );
-                            },
-                            loading: () => const Text('Đang tải...', style: TextStyle(fontSize: 12)),
-                            error: (_, __) => const Text('Lỗi', style: TextStyle(fontSize: 12)),
-                          );
-                        },
-                      ),
+                      _buildFilterChip('Tất cả', 'all', _filterType, (val) => setState(() => _filterType = val)),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Tiền thu', 'income', _filterType, (val) => setState(() => _filterType = val)),
+                      const SizedBox(width: 8),
+                      _buildFilterChip('Tiền chi', 'expense', _filterType, (val) => setState(() => _filterType = val)),
                     ],
                   ),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
+                ),
+                const SizedBox(height: 12),
+                const Text('Danh mục:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 8),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      Text(
-                        isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15,
-                          color: isIncome ? AppTheme.successColor : Theme.of(context).colorScheme.error,
-                        ),
+                      _buildCategoryChip('Tất cả', null, _filterCategory, (val) => setState(() => _filterCategory = val)),
+                      ...allCategories.map((cat) {
+                        return Padding(
+                          padding: const EdgeInsets.only(left: 8.0),
+                          child: _buildCategoryChip(cat, cat, _filterCategory, (val) => setState(() => _filterCategory = val)),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        if (filteredExpenses.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 32.0),
+            child: Center(
+              child: Text('Không tìm thấy giao dịch nào', style: TextStyle(color: Colors.grey)),
+            ),
+          )
+        else
+          ListView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: sortedDates.length,
+            itemBuilder: (context, index) {
+              final dateStr = sortedDates[index];
+              final dayExpenses = groupedExpenses[dateStr]!;
+              
+              double dailyTotal = 0;
+              for (var e in dayExpenses) {
+                if (e.type == 'income') {
+                  dailyTotal += e.amount;
+                } else {
+                  dailyTotal -= e.amount;
+                }
+              }
+
+              final parsedDate = DateTime.parse(dateStr);
+              String dateDisplay;
+              final now = DateTime.now();
+              if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day) {
+                dateDisplay = 'Hôm nay';
+              } else if (parsedDate.year == now.year && parsedDate.month == now.month && parsedDate.day == now.day - 1) {
+                dateDisplay = 'Hôm qua';
+              } else {
+                dateDisplay = DateFormat('dd/MM/yyyy').format(parsedDate);
+              }
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade50,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
                       ),
-                      if (currentUser != null && expense.paidBy == currentUser.uid)
-                        PopupMenuButton<String>(
-                          icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
-                          onSelected: (value) async {
-                            if (value == 'edit') {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => EditExpenseScreen(expense: expense),
-                                ),
-                              );
-                            } else if (value == 'delete') {
-                              final confirm = await showDialog<bool>(
-                                context: context,
-                                builder: (dialogContext) => AlertDialog(
-                                  title: const Text('Xóa giao dịch'),
-                                  content: const Text('Bạn có chắc chắn muốn xóa giao dịch này không?'),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(dialogContext, false),
-                                      child: const Text('Hủy'),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(dialogContext, true),
-                                      style: TextButton.styleFrom(foregroundColor: Colors.red),
-                                      child: const Text('Xóa'),
-                                    ),
-                                  ],
-                                ),
-                              );
-                              
-                              if (confirm == true) {
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            dateDisplay,
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          Text(
+                            formatter.format(dailyTotal),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: dailyTotal >= 0 ? AppTheme.successColor : Colors.black87,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    ...dayExpenses.map((expense) {
+                      final isIncome = expense.type == 'income';
+                      final isSettlement = expense.type == 'settlement';
+                      
+                      IconData displayIcon = CategoryConstants.getIcon(expense.category);
+                      Color displayColor = CategoryConstants.getColor(expense.category);
+
+                      if (isIncome) {
+                        displayIcon = Icons.monetization_on;
+                        displayColor = AppTheme.successColor;
+                      } else if (isSettlement) {
+                        displayIcon = Icons.handshake;
+                        displayColor = Colors.orange;
+                      }
+
+                      final bool canEdit = currentUser != null && expense.paidBy == currentUser.uid;
+                      final bool needsConfirmation = !expense.isConfirmed && canEdit;
+
+                      return Slidable(
+                        key: ValueKey(expense.id),
+                        startActionPane: needsConfirmation ? ActionPane(
+                          motion: const ScrollMotion(),
+                          children: [
+                            SlidableAction(
+                              onPressed: (context) async {
                                 try {
-                                  await ref.read(expenseServiceProvider).deleteExpense(expense.groupId, expense.id);
+                                  await ref.read(expenseServiceProvider).updateExpense(
+                                    expense.copyWith(isConfirmed: true),
+                                  );
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Đã xóa giao dịch')),
+                                      const SnackBar(content: Text('Đã xác nhận giao dịch')),
                                     );
                                   }
                                 } catch (e) {
@@ -206,56 +273,19 @@ class TransactionList extends ConsumerWidget {
                                     );
                                   }
                                 }
-                              }
-                            }
-                          },
-                          itemBuilder: (context) => [
-                            const PopupMenuItem(
-                              value: 'edit',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.edit, size: 20, color: Colors.blue),
-                                  SizedBox(width: 8),
-                                  Text('Sửa'),
-                                ],
-                              ),
-                            ),
-                            const PopupMenuItem(
-                              value: 'delete',
-                              child: Row(
-                                children: [
-                                  Icon(Icons.delete, size: 20, color: Colors.red),
-                                  SizedBox(width: 8),
-                                  Text('Xóa', style: TextStyle(color: Colors.red)),
-                                ],
-                              ),
+                              },
+                              backgroundColor: AppTheme.successColor,
+                              foregroundColor: Colors.white,
+                              icon: Icons.check,
+                              label: 'Xác nhận',
                             ),
                           ],
-                        ),
-                    ],
-                  ),
-                  onLongPress: () {
-                    final currentUser = ref.read(authStateProvider).value;
-                    if (currentUser == null) return;
-                    
-                    if (expense.paidBy != currentUser.uid) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Bạn chỉ có thể sửa/xóa giao dịch do chính bạn tạo')),
-                      );
-                      return;
-                    }
-
-                    showModalBottomSheet(
-                      context: context,
-                      builder: (bottomSheetContext) => SafeArea(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
+                        ) : null,
+                        endActionPane: canEdit ? ActionPane(
+                          motion: const ScrollMotion(),
                           children: [
-                            ListTile(
-                              leading: const Icon(Icons.edit, color: Colors.blue),
-                              title: const Text('Sửa giao dịch'),
-                              onTap: () {
-                                Navigator.pop(bottomSheetContext);
+                            SlidableAction(
+                              onPressed: (context) {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
@@ -263,12 +293,13 @@ class TransactionList extends ConsumerWidget {
                                   ),
                                 );
                               },
+                              backgroundColor: Colors.blue,
+                              foregroundColor: Colors.white,
+                              icon: Icons.edit,
+                              label: 'Sửa',
                             ),
-                            ListTile(
-                              leading: const Icon(Icons.delete, color: Colors.red),
-                              title: const Text('Xóa giao dịch'),
-                              onTap: () async {
-                                Navigator.pop(bottomSheetContext);
+                            SlidableAction(
+                              onPressed: (context) async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (dialogContext) => AlertDialog(
@@ -305,18 +336,114 @@ class TransactionList extends ConsumerWidget {
                                   }
                                 }
                               },
+                              backgroundColor: Colors.red,
+                              foregroundColor: Colors.white,
+                              icon: Icons.delete,
+                              label: 'Xóa',
                             ),
                           ],
+                        ) : null,
+                        child: ListTile(
+                          tileColor: expense.isConfirmed ? null : Colors.orange.shade50,
+                          leading: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: displayColor.withOpacity(0.1),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(displayIcon, color: displayColor),
+                          ),
+                          title: Row(
+                            children: [
+                              Expanded(child: Text(expense.description, style: const TextStyle(fontWeight: FontWeight.w500))),
+                              if (!expense.isConfirmed)
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: Colors.orange,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: const Text('Chờ duyệt', style: TextStyle(color: Colors.white, fontSize: 10)),
+                                ),
+                            ],
+                          ),
+                          subtitle: widget.isPersonal ? Text(expense.category) : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(expense.category),
+                              Consumer(
+                                builder: (context, ref, _) {
+                                  final userAsync = ref.watch(userProfileProvider(expense.paidBy));
+                                  return userAsync.when(
+                                    data: (user) {
+                                      final label = isIncome ? 'Người thu' : 'Người chi';
+                                      return Text(
+                                        '$label: ${user?.name ?? 'Không rõ'}',
+                                        style: const TextStyle(fontSize: 12, color: AppTheme.secondaryColor),
+                                      );
+                                    },
+                                    loading: () => const Text('Đang tải...', style: TextStyle(fontSize: 12)),
+                                    error: (_, __) => const Text('Lỗi', style: TextStyle(fontSize: 12)),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                          trailing: Text(
+                            isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: isIncome ? AppTheme.successColor : Theme.of(context).colorScheme.error,
+                            ),
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                );
-              }),
-            ],
+                      );
+                    }),
+                  ],
+                ),
+              );
+            },
           ),
-        );
-      },
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value, String groupValue, Function(String) onSelected) {
+    final isSelected = value == groupValue;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(value),
+      showCheckmark: false,
+      backgroundColor: Colors.white,
+      selectedColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.2),
+      labelStyle: TextStyle(
+        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? Theme.of(context).colorScheme.primary : Colors.grey.shade300,
+      ),
+    );
+  }
+
+  Widget _buildCategoryChip(String label, String? value, String? groupValue, Function(String?) onSelected) {
+    final isSelected = value == groupValue;
+    return FilterChip(
+      label: Text(label),
+      selected: isSelected,
+      onSelected: (_) => onSelected(value),
+      showCheckmark: false,
+      backgroundColor: Colors.white,
+      selectedColor: Theme.of(context).colorScheme.secondary.withValues(alpha: 0.2),
+      labelStyle: TextStyle(
+        color: isSelected ? Theme.of(context).colorScheme.secondary : Colors.black87,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+      ),
+      side: BorderSide(
+        color: isSelected ? Theme.of(context).colorScheme.secondary : Colors.grey.shade300,
+      ),
     );
   }
 }
