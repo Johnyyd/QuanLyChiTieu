@@ -5,6 +5,7 @@ import '../providers/groups_provider.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 import 'group_detail_screen.dart';
+import '../../chat/screens/chat_screen.dart';
 import '../../../core/theme/app_theme.dart';
 import 'package:shimmer/shimmer.dart';
 
@@ -184,6 +185,16 @@ class HomeScreen extends ConsumerWidget {
         },
         loading: () => _buildShimmerLoading(),
         error: (e, trace) => Center(child: Text('Lỗi tải nhóm: $e')),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const ChatScreen()),
+          );
+        },
+        tooltip: 'Trợ lý AI',
+        child: const Icon(Icons.smart_toy),
       ),
     );
   }

@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "479615386308-e6m3pj6lud4t1f3v9444uogc6j39lo2m.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.quanlychitieu.quanlychitieu",
+            "certificate_hash": "1ec13ac3b41d7d09375923bc3ce5bf8226b8a453"
+          }
+        },
+        {
           "client_id": "479615386308-cagdvbkr9qs9nonnvkuesc6nojnohfm8.apps.googleusercontent.com",
           "client_type": 3
         }
