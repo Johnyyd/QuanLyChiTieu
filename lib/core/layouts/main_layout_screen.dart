@@ -37,7 +37,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                 );
               },
               heroTag: 'main_fab',
-              backgroundColor: AppTheme.primaryColor,
+              backgroundColor: Theme.of(context).colorScheme.primary,
               icon: const Icon(Icons.add, color: Colors.white),
               label: const Text('Thêm chi tiêu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             )
@@ -51,7 +51,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
           });
         },
         type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppTheme.primaryColor,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
         showSelectedLabels: true,
         showUnselectedLabels: true,

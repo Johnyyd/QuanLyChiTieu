@@ -59,14 +59,14 @@ class GroupDetailScreen extends ConsumerWidget {
                 pinned: true,
                 title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                 centerTitle: true,
-                backgroundColor: AppTheme.primaryColor,
+                backgroundColor: Theme.of(context).colorScheme.primary,
                 iconTheme: const IconThemeData(color: Colors.white),
 
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.7)],
+                        colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -80,9 +80,9 @@ class GroupDetailScreen extends ConsumerWidget {
                             Container(
                               padding: const EdgeInsets.all(16),
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.2), // Glassmorphism
+                                color: Colors.white.withValues(alpha: 0.2), // Glassmorphism
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
                               ),
                               child: Row(
                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -98,7 +98,7 @@ class GroupDetailScreen extends ConsumerWidget {
                                       ),
                                     ],
                                   ),
-                                  Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+                                  Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
                                   Column(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
@@ -133,19 +133,19 @@ class GroupDetailScreen extends ConsumerWidget {
                                     borderRadius: BorderRadius.circular(8),
                                     child: LinearProgressIndicator(
                                       value: (totalExpense / group.budget!).clamp(0.0, 1.0),
-                                      backgroundColor: Colors.white.withOpacity(0.2),
+                                      backgroundColor: Colors.white.withValues(alpha: 0.2),
                                       valueColor: AlwaysStoppedAnimation<Color>(
-                                        totalExpense > group.budget! ? AppTheme.errorColor : Colors.greenAccent,
+                                        totalExpense > group.budget! ? Theme.of(context).colorScheme.error : Colors.greenAccent,
                                       ),
                                       minHeight: 8,
                                     ),
                                   ),
                                   if (totalExpense > group.budget!)
-                                    const Padding(
-                                      padding: EdgeInsets.only(top: 4),
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
                                       child: Text(
                                         'Đã vượt ngân sách!',
-                                        style: TextStyle(color: AppTheme.errorColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11, fontWeight: FontWeight.bold),
                                       ),
                                     ),
                                 ],
@@ -263,9 +263,9 @@ class GroupDetailScreen extends ConsumerWidget {
                                       ),
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.copy, color: AppTheme.primaryColor),
-                                      onPressed: () {
-                                        Clipboard.setData(ClipboardData(text: group.id));
+                                        icon: Icon(Icons.copy, color: Theme.of(context).colorScheme.primary),
+                                        onPressed: () {
+                                          Clipboard.setData(ClipboardData(text: group.id));
                                         ScaffoldMessenger.of(context).showSnackBar(
                                           const SnackBar(content: Text('Đã sao chép mã nhóm!')),
                                         );
@@ -295,16 +295,19 @@ class GroupDetailScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.receipt_long, size: 80, color: AppTheme.primaryColor.withOpacity(0.3)),
+                        Icon(Icons.receipt_long, size: 80, color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3)),
                         const SizedBox(height: 16),
-                        const Text('Chưa có khoản chi tiêu nào', style: TextStyle(color: AppTheme.textSecondary)),
+                        Text('Chưa có khoản chi tiêu nào', style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant)),
                       ],
                     ),
                   ),
                 )
               else ...[
                 SliverToBoxAdapter(
-                  child: _buildPieChart(expenses),
+                  child: _buildPieChart(context, expenses),
+                ),
+                SliverToBoxAdapter(
+                  child: _buildMemberStats(context, expenses),
                 ),
                 SliverToBoxAdapter(
                   child: TransactionList(expenses: expenses, isPersonal: false),
@@ -335,7 +338,7 @@ class GroupDetailScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildPieChart(List<Expense> expenses) {
+  Widget _buildPieChart(BuildContext context, List<Expense> expenses) {
     // Chỉ lấy các expense thực sự, không lấy settlement
     final realExpenses = expenses.where((e) => e.type != 'settlement').toList();
     if (realExpenses.isEmpty) return const SizedBox.shrink();
@@ -372,9 +375,9 @@ class GroupDetailScreen extends ConsumerWidget {
               Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(category, style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary), overflow: TextOverflow.ellipsis),
+                child: Text(category, style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurface), overflow: TextOverflow.ellipsis),
               ),
-              Text(currencyFormat.format(total), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+              Text(currencyFormat.format(total), style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -393,7 +396,7 @@ class GroupDetailScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Thống kê danh mục', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
+            Text('Thống kê danh mục', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface)),
             const SizedBox(height: 24),
             SizedBox(
               height: 160,
@@ -409,6 +412,71 @@ class GroupDetailScreen extends ConsumerWidget {
             Column(
               children: legendItems,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMemberStats(BuildContext context, List<Expense> expenses) {
+    final Map<String, double> userTotalSpent = {};
+    for (var e in expenses) {
+      if (e.type != 'settlement') {
+        userTotalSpent[e.paidBy] = (userTotalSpent[e.paidBy] ?? 0) + e.amount;
+      }
+    }
+
+    if (userTotalSpent.isEmpty) return const SizedBox.shrink();
+
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+    final sortedUsers = userTotalSpent.keys.toList()..sort((a, b) => userTotalSpent[b]!.compareTo(userTotalSpent[a]!));
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Chi tiêu theo thành viên', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Theme.of(context).colorScheme.onSurface)),
+            const SizedBox(height: 16),
+            ...sortedUsers.map((userId) {
+              final total = userTotalSpent[userId]!;
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      child: Icon(Icons.person, size: 20, color: Theme.of(context).colorScheme.primary),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Consumer(
+                        builder: (context, ref, _) {
+                          final userAsync = ref.watch(userProfileProvider(userId));
+                          return userAsync.when(
+                            data: (user) => Text(user?.name ?? 'Không rõ', style: const TextStyle(fontWeight: FontWeight.w500)),
+                            loading: () => const Text('Đang tải...'),
+                            error: (_, __) => const Text('Lỗi'),
+                          );
+                        },
+                      ),
+                    ),
+                    Text(
+                      currencyFormat.format(total),
+                      style: TextStyle(fontWeight: FontWeight.bold, color: Theme.of(context).colorScheme.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ),
       ),

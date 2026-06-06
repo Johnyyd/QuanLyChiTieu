@@ -13,6 +13,7 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final _nameController = TextEditingController();
   final _budgetController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -59,7 +60,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
             ),
             const SizedBox(height: 24),
             ElevatedButton(
-              onPressed: () async {
+              onPressed: _isLoading ? null : () async {
                 final name = _nameController.text.trim();
                 if (name.isEmpty) return;
 
@@ -68,6 +69,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
 
                 final user = ref.read(authStateProvider).value;
                 if (user != null) {
+                  setState(() => _isLoading = true);
                   try {
                     await ref.read(groupServiceProvider).createGroup(name, user.uid, budget: budget);
                     if (context.mounted) {
@@ -79,13 +81,17 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         SnackBar(content: Text('Lỗi tạo nhóm: $e')),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 }
               },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text('Tạo nhóm', style: TextStyle(fontSize: 16)),
+              child: _isLoading 
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : const Text('Tạo nhóm', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),

@@ -8,6 +8,9 @@ import '../../groups/providers/groups_provider.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/models/expense_model.dart';
 import '../../auth/providers/user_provider.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
@@ -20,6 +23,70 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
   String? selectedGroupId;
   String _timeRange = 'Tháng này';
 
+  Future<void> _exportToCSV(BuildContext context, WidgetRef ref) async {
+    if (selectedGroupId == null) return;
+    try {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Đang xuất dữ liệu...')),
+      );
+
+      final expenses = await ref.read(expensesProvider(selectedGroupId!).future);
+      
+      final now = DateTime.now();
+      final filtered = expenses.where((e) {
+        if (e.type == 'settlement') return false;
+        if (_timeRange == 'Tháng này') {
+          return e.date.year == now.year && e.date.month == now.month;
+        } else if (_timeRange == 'Tháng trước') {
+          final lastMonth = DateTime(now.year, now.month - 1);
+          return e.date.year == lastMonth.year && e.date.month == lastMonth.month;
+        }
+        return true;
+      }).toList();
+
+      if (filtered.isEmpty) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Không có dữ liệu để xuất')),
+          );
+        }
+        return;
+      }
+
+      StringBuffer csvBuffer = StringBuffer();
+      csvBuffer.writeln("Ngày,Loại,Danh mục,Số tiền,Người tạo,Ghi chú");
+      
+      final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
+      for (var e in filtered) {
+        String date = dateFormat.format(e.date);
+        String type = e.type == 'income' ? 'Thu' : 'Chi';
+        String category = '"${e.category.replaceAll('"', '""')}"';
+        String amount = e.amount.toString();
+        String paidBy = '"${e.paidBy.replaceAll('"', '""')}"';
+        String note = '"${e.description.replaceAll('"', '""')}"';
+        
+        csvBuffer.writeln("$date,$type,$category,$amount,$paidBy,$note");
+      }
+
+      String csv = csvBuffer.toString();
+      
+      final dir = await getApplicationDocumentsDirectory();
+      final file = File('${dir.path}/bao_cao_chi_tieu_${DateTime.now().millisecondsSinceEpoch}.csv');
+      await file.writeAsString(csv);
+
+      if (context.mounted) {
+        final xfile = XFile(file.path);
+        await Share.shareXFiles([xfile], text: 'Báo cáo chi tiêu');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi xuất file: $e')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final groupsAsync = ref.watch(groupsProvider);
@@ -27,8 +94,15 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Báo cáo phân tích'),
-        backgroundColor: AppTheme.primaryColor,
+        backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Colors.white,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.download),
+            tooltip: 'Xuất CSV',
+            onPressed: () => _exportToCSV(context, ref),
+          ),
+        ],
       ),
       body: groupsAsync.when(
         data: (groups) {
@@ -49,44 +123,54 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                   children: [
                     Expanded(
                       flex: 2,
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: selectedGroupId,
-                        decoration: const InputDecoration(
-                          labelText: 'Ví / Nhóm',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: DropdownButtonHideUnderline(
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Ví / Nhóm',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: selectedGroupId,
+                            items: groups.map((g) {
+                              return DropdownMenuItem<String>(
+                                value: g.id,
+                                child: Text(g.name, overflow: TextOverflow.ellipsis),
+                              );
+                            }).toList(),
+                            onChanged: (groupId) {
+                              setState(() => selectedGroupId = groupId);
+                            },
+                          ),
                         ),
-                        items: groups.map((g) {
-                          return DropdownMenuItem<String>(
-                            value: g.id,
-                            child: Text(g.name, overflow: TextOverflow.ellipsis),
-                          );
-                        }).toList(),
-                        onChanged: (groupId) {
-                          setState(() => selectedGroupId = groupId);
-                        },
                       ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
                       flex: 1,
-                      child: DropdownButtonFormField<String>(
-                        isExpanded: true,
-                        value: _timeRange,
-                        decoration: const InputDecoration(
-                          labelText: 'Thời gian',
-                          border: OutlineInputBorder(),
-                          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      child: DropdownButtonHideUnderline(
+                        child: InputDecorator(
+                          decoration: const InputDecoration(
+                            labelText: 'Thời gian',
+                            border: OutlineInputBorder(),
+                            contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          ),
+                          child: DropdownButton<String>(
+                            isExpanded: true,
+                            value: _timeRange,
+                            items: const [
+                              DropdownMenuItem(value: 'Tháng này', child: Text('Tháng này')),
+                              DropdownMenuItem(value: 'Tháng trước', child: Text('Tháng trước')),
+                              DropdownMenuItem(value: 'Tất cả', child: Text('Tất cả')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                setState(() => _timeRange = val);
+                              }
+                            },
+                          ),
                         ),
-                        items: const [
-                          DropdownMenuItem(value: 'Tháng này', child: Text('Tháng này')),
-                          DropdownMenuItem(value: 'Tháng trước', child: Text('Tháng trước')),
-                          DropdownMenuItem(value: 'Tất cả', child: Text('Tất cả')),
-                        ],
-                        onChanged: (val) {
-                          if (val != null) setState(() => _timeRange = val);
-                        },
                       ),
                     ),
                   ],
@@ -172,41 +256,57 @@ class _AdvancedReportChart extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               // 1. Tổng quan
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.secondary],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                      blurRadius: 10,
+                      offset: const Offset(0, 5),
+                    ),
+                  ],
+                ),
                 child: Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
                     children: [
-                      const Text('TỔNG QUAN', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                      const Text('TỔNG QUAN', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                       const SizedBox(height: 16),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Tổng thu'),
-                          Text(currencyFormat.format(totalIncome), style: const TextStyle(color: AppTheme.successColor, fontWeight: FontWeight.bold)),
+                          const Text('Tổng thu', style: TextStyle(color: Colors.white)),
+                          Text(currencyFormat.format(totalIncome), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                         ],
                       ),
-                      const Divider(height: 24),
+                      const SizedBox(height: 12),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Tổng chi'),
-                          Text(currencyFormat.format(totalExpense), style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                          const Text('Tổng chi', style: TextStyle(color: Colors.white)),
+                          Text(currencyFormat.format(totalExpense), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                         ],
                       ),
-                      const Divider(height: 24),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Divider(height: 1, color: Colors.white24),
+                      ),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Số dư', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Text('Số dư', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
                           Text(
                             currencyFormat.format(balance), 
-                            style: TextStyle(
-                              color: balance >= 0 ? AppTheme.primaryColor : Colors.red, 
+                            style: const TextStyle(
+                              color: Colors.white, 
                               fontWeight: FontWeight.bold, 
-                              fontSize: 18
+                              fontSize: 22
                             )
                           ),
                         ],
@@ -217,8 +317,17 @@ class _AdvancedReportChart extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // 2. Biểu đồ tròn (Cơ cấu chi tiêu)
+              // 2. Biểu đồ đường (Xu hướng chi tiêu)
               if (totalExpense > 0) ...[
+                const Text('Xu hướng chi tiêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 24),
+                SizedBox(
+                  height: 200,
+                  child: _buildLineChart(expenses, timeRange, context),
+                ),
+                const SizedBox(height: 32),
+
+                // 3. Biểu đồ tròn (Cơ cấu chi tiêu)
                 const Text('Cơ cấu chi tiêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 24),
                 SizedBox(
@@ -243,7 +352,7 @@ class _AdvancedReportChart extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
 
-                // 3. Danh sách chi tiết từng danh mục
+                // 4. Danh sách chi tiết từng danh mục
                 ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -256,7 +365,7 @@ class _AdvancedReportChart extends ConsumerWidget {
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: color.withOpacity(0.2),
+                        backgroundColor: color.withValues(alpha: 0.2),
                         child: Icon(icon, color: color),
                       ),
                       title: Text(entry.key),
@@ -277,7 +386,7 @@ class _AdvancedReportChart extends ConsumerWidget {
                   },
                 ),
 
-                // 4. Danh sách chi tiết từng người dùng
+                // 5. Danh sách chi tiết từng người dùng
                 if (sortedUsers.isNotEmpty) ...[
                   const SizedBox(height: 32),
                   const Text('Chi tiêu theo thành viên', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -301,8 +410,8 @@ class _AdvancedReportChart extends ConsumerWidget {
                             final userAsync = ref.watch(userProfileProvider(userId));
                             return ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
-                                child: const Icon(Icons.person, color: AppTheme.primaryColor),
+                                backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                child: Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
                               ),
                               title: userAsync.when(
                                 data: (user) => Text(user?.name ?? 'Người dùng', style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -312,7 +421,7 @@ class _AdvancedReportChart extends ConsumerWidget {
                               subtitle: LinearProgressIndicator(
                                 value: percentage / 100,
                                 backgroundColor: Colors.grey.shade200,
-                                color: AppTheme.primaryColor,
+                                color: Theme.of(context).colorScheme.primary,
                               ),
                               trailing: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
@@ -336,6 +445,115 @@ class _AdvancedReportChart extends ConsumerWidget {
       },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, st) => Center(child: Text('Lỗi: $e')),
+    );
+  }
+
+  Widget _buildLineChart(List<Expense> expenses, String timeRange, BuildContext context) {
+    final Map<int, double> groupedExpenses = {};
+    final now = DateTime.now();
+    final isAllTime = timeRange == 'Tất cả';
+    int maxX = isAllTime ? 12 : 31;
+    
+    if (!isAllTime) {
+      if (timeRange == 'Tháng trước') {
+         maxX = DateTime(now.year, now.month, 0).day;
+      } else if (timeRange == 'Tháng này') {
+         maxX = DateTime(now.year, now.month + 1, 0).day;
+      }
+    }
+
+    for (var e in expenses) {
+      if (e.type == 'expense') {
+        int key = isAllTime ? e.date.month : e.date.day;
+        groupedExpenses[key] = (groupedExpenses[key] ?? 0) + e.amount;
+      }
+    }
+    
+    final List<FlSpot> spots = [];
+    double maxExpense = 0;
+    for (int i = 1; i <= maxX; i++) {
+      double val = groupedExpenses[i] ?? 0;
+      if (val > maxExpense) maxExpense = val;
+      spots.add(FlSpot(i.toDouble(), val));
+    }
+
+    if (maxExpense == 0) maxExpense = 100000;
+
+    return LineChart(
+      LineChartData(
+        gridData: FlGridData(
+          show: true,
+          drawVerticalLine: false,
+          horizontalInterval: maxExpense > 0 ? (maxExpense / 4) : 100000,
+          getDrawingHorizontalLine: (value) {
+            return FlLine(
+              color: Colors.grey.withValues(alpha: 0.2),
+              strokeWidth: 1,
+              dashArray: [5, 5],
+            );
+          },
+        ),
+        titlesData: FlTitlesData(
+          bottomTitles: AxisTitles(
+            sideTitles: SideTitles(
+              showTitles: true,
+              reservedSize: 22,
+              interval: isAllTime ? 1 : 3,
+              getTitlesWidget: (value, meta) {
+                if (value.toInt() == 0 || value.toInt() > maxX) return const SizedBox();
+                return Text(
+                  isAllTime ? 'T${value.toInt()}' : value.toInt().toString(), 
+                  style: const TextStyle(fontSize: 10, color: Colors.grey)
+                );
+              },
+            ),
+          ),
+          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+        ),
+        borderData: FlBorderData(show: false),
+        minX: 1,
+        maxX: maxX.toDouble(),
+        minY: 0,
+        maxY: maxExpense * 1.2,
+        lineTouchData: LineTouchData(
+          touchTooltipData: LineTouchTooltipData(
+            getTooltipColor: (touchedSpot) => Theme.of(context).colorScheme.primaryContainer,
+            getTooltipItems: (touchedSpots) {
+              return touchedSpots.map((spot) {
+                final format = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+                final dateStr = isAllTime ? 'Tháng ${spot.x.toInt()}' : 'Ngày ${spot.x.toInt()}';
+                return LineTooltipItem(
+                  '$dateStr\n${format.format(spot.y)}',
+                  TextStyle(color: Theme.of(context).colorScheme.onPrimaryContainer, fontWeight: FontWeight.bold),
+                );
+              }).toList();
+            },
+          ),
+        ),
+        lineBarsData: [
+          LineChartBarData(
+            spots: spots,
+            isCurved: true,
+            color: Theme.of(context).colorScheme.primary,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
+                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.0),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

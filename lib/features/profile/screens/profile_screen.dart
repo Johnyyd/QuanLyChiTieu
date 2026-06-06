@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../auth/providers/user_provider.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../core/theme/theme_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -31,14 +32,14 @@ class ProfileScreen extends ConsumerWidget {
               Center(
                 child: CircleAvatar(
                   radius: 50,
-                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
-                  child: const Icon(Icons.person, size: 60, color: AppTheme.primaryColor),
+                  backgroundColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                  child: Icon(Icons.person, size: 60, color: Theme.of(context).colorScheme.primary),
                 ),
               ),
               const SizedBox(height: 24),
               Card(
                 elevation: 0,
-                color: Colors.white,
+                color: Theme.of(context).colorScheme.surface,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                   side: BorderSide(color: Colors.grey.shade200),
@@ -48,16 +49,81 @@ class ProfileScreen extends ConsumerWidget {
                   child: Column(
                     children: [
                       ListTile(
-                        leading: const Icon(Icons.person_outline, color: AppTheme.primaryColor),
+                        leading: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
                         title: const Text('Tên hiển thị'),
                         subtitle: Text(userProfile?.name ?? 'Không rõ', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       const Divider(),
                       ListTile(
-                        leading: const Icon(Icons.email_outlined, color: AppTheme.primaryColor),
+                        leading: Icon(Icons.email_outlined, color: Theme.of(context).colorScheme.primary),
                         title: const Text('Email'),
                         subtitle: Text(user.email ?? 'Không rõ', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              const Text('Giao diện', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey)),
+              const SizedBox(height: 8),
+              Card(
+                elevation: 0,
+                color: Theme.of(context).colorScheme.surface,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  side: BorderSide(color: Colors.grey.shade200),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: Icon(Icons.dark_mode, color: Theme.of(context).colorScheme.primary),
+                        title: const Text('Chế độ Tối (Dark Mode)'),
+                        trailing: Switch(
+                          value: ref.watch(themeProvider).themeMode == ThemeMode.dark,
+                          onChanged: (isDark) {
+                            ref.read(themeProvider.notifier).setThemeMode(isDark ? ThemeMode.dark : ThemeMode.light);
+                          },
+                          activeColor: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      const Divider(),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text('Màu chủ đạo', style: TextStyle(fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: AppTheme.recommendedColors.map((color) {
+                            final isSelected = ref.watch(themeProvider).primaryColor.value == color.value;
+                            return GestureDetector(
+                              onTap: () {
+                                ref.read(themeProvider.notifier).setPrimaryColor(color);
+                              },
+                              child: Container(
+                                margin: const EdgeInsets.symmetric(horizontal: 8),
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                  border: isSelected ? Border.all(color: Colors.black54, width: 3) : null,
+                                  boxShadow: [
+                                    if (isSelected) BoxShadow(color: color.withOpacity(0.4), blurRadius: 8, spreadRadius: 2)
+                                  ]
+                                ),
+                                child: isSelected ? const Icon(Icons.check, color: Colors.white, size: 20) : null,
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
                     ],
                   ),
                 ),
@@ -80,7 +146,7 @@ class ProfileScreen extends ConsumerWidget {
                             Navigator.pop(context);
                             ref.read(authProvider).signOut();
                           },
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorColor),
+                          style: ElevatedButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
                           child: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
                         ),
                       ],
@@ -90,7 +156,7 @@ class ProfileScreen extends ConsumerWidget {
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.errorColor,
+                  backgroundColor: Theme.of(context).colorScheme.error,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),

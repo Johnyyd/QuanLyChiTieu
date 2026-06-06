@@ -17,11 +17,11 @@ class CategorySelectionScreen extends StatelessWidget {
           title: const Text('Chọn nhóm'),
           backgroundColor: AppTheme.surfaceColor,
           elevation: 0,
-          bottom: const TabBar(
-            labelColor: AppTheme.primaryColor,
+          bottom: TabBar(
+            labelColor: Theme.of(context).colorScheme.primary,
             unselectedLabelColor: Colors.grey,
-            indicatorColor: AppTheme.primaryColor,
-            tabs: [
+            indicatorColor: Theme.of(context).colorScheme.primary,
+            tabs: const [
               Tab(text: 'KHOẢN CHI'),
               Tab(text: 'KHOẢN THU'),
             ],
@@ -61,7 +61,7 @@ class _CategoryList extends StatelessWidget {
           leading: Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
             child: Icon(icon, color: color),

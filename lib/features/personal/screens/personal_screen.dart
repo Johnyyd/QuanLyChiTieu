@@ -47,7 +47,7 @@ class PersonalScreen extends ConsumerWidget {
               return SingleChildScrollView(
                 child: Column(
                   children: [
-                    _buildDashboardCard(totalIncome, totalExpense, balance, formatter),
+                    _buildDashboardCard(context, totalIncome, totalExpense, balance, formatter),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: TransactionList(expenses: expenses, isPersonal: true),
@@ -74,25 +74,31 @@ class PersonalScreen extends ConsumerWidget {
                   ),
                 );
               },
-              backgroundColor: AppTheme.primaryColor,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('Thêm giao dịch', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              icon: Icon(Icons.add, color: Theme.of(context).colorScheme.onPrimary),
+              label: Text('Thêm giao dịch', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary, fontWeight: FontWeight.bold)),
             )
           : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.centerFloat,
     );
   }
 
-  Widget _buildDashboardCard(double income, double expense, double balance, NumberFormat formatter) {
+  Widget _buildDashboardCard(BuildContext context, double income, double expense, double balance, NumberFormat formatter) {
+    final colorScheme = Theme.of(context).colorScheme;
+    
     return Container(
       margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppTheme.primaryColor,
-        borderRadius: BorderRadius.circular(20),
+        gradient: LinearGradient(
+          colors: [colorScheme.primary, colorScheme.primaryContainer.withValues(alpha: 0.8)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.primaryColor.withOpacity(0.3),
+            color: colorScheme.primary.withValues(alpha: 0.3),
             blurRadius: 10,
             offset: const Offset(0, 5),
           ),
@@ -100,18 +106,18 @@ class PersonalScreen extends ConsumerWidget {
       ),
       child: Column(
         children: [
-          const Text('SỐ DƯ HIỆN TẠI', style: TextStyle(color: Colors.white70, fontSize: 14)),
+          Text('SỐ DƯ HIỆN TẠI', style: TextStyle(color: colorScheme.onPrimary.withValues(alpha: 0.7), fontSize: 14)),
           const SizedBox(height: 8),
           Text(
             formatter.format(balance),
-            style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+            style: TextStyle(color: colorScheme.onPrimary, fontSize: 32, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _buildStatItem('THU NHẬP', income, AppTheme.successColor, formatter),
-              Container(width: 1, height: 40, color: Colors.white24),
+              Container(width: 1, height: 40, color: colorScheme.onPrimary.withValues(alpha: 0.24)),
               _buildStatItem('CHI TIÊU', expense, Colors.redAccent, formatter),
             ],
           ),

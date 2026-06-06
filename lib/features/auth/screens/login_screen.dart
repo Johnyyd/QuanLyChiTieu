@@ -13,6 +13,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -67,11 +68,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: _isLoading ? null : () async {
                   final email = _emailController.text.trim();
                   final password = _passwordController.text.trim();
                   if (email.isEmpty || password.isEmpty) return;
 
+                  setState(() => _isLoading = true);
                   try {
                     await ref.read(authProvider).signInWithEmailPassword(email, password);
                     // Login successful, navigation handled by auth state listener
@@ -81,16 +83,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         SnackBar(content: Text('Lỗi đăng nhập: ${e.toString()}')),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Đăng Nhập', style: TextStyle(fontSize: 16)),
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Đăng Nhập', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () async {
+                onPressed: _isLoading ? null : () async {
+                  setState(() => _isLoading = true);
                   try {
                     await ref.read(authProvider).signInWithGoogle();
                     // Login successful, navigation handled by auth state listener
@@ -100,6 +107,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         SnackBar(content: Text('Lỗi đăng nhập Google: ${e.toString()}')),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 },
                 icon: Image.network(
@@ -113,7 +122,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               const SizedBox(height: 16),
               TextButton(
-                onPressed: () {
+                onPressed: _isLoading ? null : () {
                   Navigator.push(
                     context,
                     MaterialPageRoute(

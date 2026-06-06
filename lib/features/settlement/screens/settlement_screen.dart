@@ -189,7 +189,7 @@ class SettlementScreen extends ConsumerWidget {
                           label: const Text('Xác nhận đã thanh toán'),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.grey.shade100, // Make it look clickable inside card
-                            foregroundColor: AppTheme.primaryColor,
+                            foregroundColor: Theme.of(context).colorScheme.primary,
                             elevation: 0,
                           ),
                         ),

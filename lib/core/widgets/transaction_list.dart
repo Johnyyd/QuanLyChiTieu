@@ -21,6 +21,8 @@ class TransactionList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final currentUser = ref.watch(authStateProvider).value;
+
     if (expenses.isEmpty) {
       return const Center(
         child: Padding(
@@ -147,13 +149,90 @@ class TransactionList extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  trailing: Text(
-                    isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 15,
-                      color: isIncome ? AppTheme.successColor : Colors.red.shade700,
-                    ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: isIncome ? AppTheme.successColor : Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                      if (currentUser != null && expense.paidBy == currentUser.uid)
+                        PopupMenuButton<String>(
+                          icon: const Icon(Icons.more_vert, size: 20, color: Colors.grey),
+                          onSelected: (value) async {
+                            if (value == 'edit') {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => EditExpenseScreen(expense: expense),
+                                ),
+                              );
+                            } else if (value == 'delete') {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (dialogContext) => AlertDialog(
+                                  title: const Text('Xóa giao dịch'),
+                                  content: const Text('Bạn có chắc chắn muốn xóa giao dịch này không?'),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(dialogContext, false),
+                                      child: const Text('Hủy'),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(dialogContext, true),
+                                      style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                      child: const Text('Xóa'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              
+                              if (confirm == true) {
+                                try {
+                                  await ref.read(expenseServiceProvider).deleteExpense(expense.groupId, expense.id);
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Đã xóa giao dịch')),
+                                    );
+                                  }
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Lỗi: $e')),
+                                    );
+                                  }
+                                }
+                              }
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.edit, size: 20, color: Colors.blue),
+                                  SizedBox(width: 8),
+                                  Text('Sửa'),
+                                ],
+                              ),
+                            ),
+                            const PopupMenuItem(
+                              value: 'delete',
+                              child: Row(
+                                children: [
+                                  Icon(Icons.delete, size: 20, color: Colors.red),
+                                  SizedBox(width: 8),
+                                  Text('Xóa', style: TextStyle(color: Colors.red)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                   onLongPress: () {
                     final currentUser = ref.read(authStateProvider).value;

@@ -14,6 +14,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -77,7 +78,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               ),
               const SizedBox(height: 24),
               ElevatedButton(
-                onPressed: () async {
+                onPressed: _isLoading ? null : () async {
                   final name = _nameController.text.trim();
                   final email = _emailController.text.trim();
                   final password = _passwordController.text.trim();
@@ -91,6 +92,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     return;
                   }
 
+                  setState(() => _isLoading = true);
                   try {
                     await ref.read(authProvider).registerWithEmailPassword(email, password, name);
                     if (context.mounted) {
@@ -102,16 +104,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         SnackBar(content: Text('Lỗi đăng ký: ${e.toString()}')),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 },
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
-                child: const Text('Đăng Ký', style: TextStyle(fontSize: 16)),
+                child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text('Đăng Ký', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 16),
               OutlinedButton.icon(
-                onPressed: () async {
+                onPressed: _isLoading ? null : () async {
+                  setState(() => _isLoading = true);
                   try {
                     await ref.read(authProvider).signInWithGoogle();
                     if (context.mounted) {
@@ -123,6 +130,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                         SnackBar(content: Text('Lỗi đăng ký Google: ${e.toString()}')),
                       );
                     }
+                  } finally {
+                    if (mounted) setState(() => _isLoading = false);
                   }
                 },
                 icon: Image.network(
