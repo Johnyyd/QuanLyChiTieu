@@ -389,13 +389,24 @@ class _TransactionListState extends ConsumerState<TransactionList> {
                               ),
                             ],
                           ),
-                          trailing: Text(
-                            isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: isIncome ? AppTheme.successColor : Theme.of(context).colorScheme.error,
-                            ),
+                          trailing: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                isIncome ? '+${formatter.format(expense.amount)}' : '-${formatter.format(expense.amount)}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: isIncome ? AppTheme.successColor : Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                              if (expense.currency != 'VND' && expense.originalAmount != null)
+                                Text(
+                                  '${expense.originalAmount} ${expense.currency}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                                ),
+                            ],
                           ),
                         ),
                       );

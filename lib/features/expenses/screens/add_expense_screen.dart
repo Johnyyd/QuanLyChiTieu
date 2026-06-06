@@ -31,6 +31,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
   bool _isRecurring = false;
   Frequency _frequency = Frequency.monthly;
 
+  String _selectedCurrency = 'VND';
+  static const Map<String, double> _exchangeRates = {
+    'VND': 1.0,
+    'USD': 25400.0,
+    'EUR': 27500.0,
+    'JPY': 165.0,
+  };
+
   @override
   void dispose() {
     _descriptionController.dispose();
@@ -64,23 +72,57 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
               ),
             ),
             const SizedBox(height: 24),
-            TextField(
-              controller: _amountController,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintText: '0',
-                hintStyle: TextStyle(fontSize: 48, color: Colors.grey.shade400),
-                suffixText: 'đ',
-                suffixStyle: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              style: TextStyle(
-                fontSize: 48, 
-                fontWeight: FontWeight.bold, 
-                color: _transactionType == 'expense' ? Colors.red.shade700 : AppTheme.successColor,
-              ),
-              textAlign: TextAlign.center,
-              keyboardType: TextInputType.number,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _amountController,
+                    decoration: InputDecoration(
+                      border: InputBorder.none,
+                      hintText: '0',
+                      hintStyle: TextStyle(fontSize: 48, color: Colors.grey.shade400),
+                    ),
+                    style: TextStyle(
+                      fontSize: 48, 
+                      fontWeight: FontWeight.bold, 
+                      color: _transactionType == 'expense' ? Colors.red.shade700 : AppTheme.successColor,
+                    ),
+                    textAlign: TextAlign.center,
+                    keyboardType: TextInputType.number,
+                    onChanged: (val) => setState(() {}),
+                  ),
+                ),
+                DropdownButton<String>(
+                  value: _selectedCurrency,
+                  underline: const SizedBox(),
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                  items: _exchangeRates.keys.map((String currency) {
+                    return DropdownMenuItem<String>(
+                      value: currency,
+                      child: Text(currency),
+                    );
+                  }).toList(),
+                  onChanged: (String? newValue) {
+                    if (newValue != null) {
+                      setState(() {
+                        _selectedCurrency = newValue;
+                      });
+                    }
+                  },
+                ),
+              ],
             ),
+            if (_selectedCurrency != 'VND')
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8.0),
+                  child: Text(
+                    '≈ ${NumberFormat.currency(locale: 'vi_VN', symbol: 'VND').format((double.tryParse(_amountController.text) ?? 0) * _exchangeRates[_selectedCurrency]!)}',
+                    style: const TextStyle(fontSize: 16, color: Colors.grey, fontStyle: FontStyle.italic),
+                  ),
+                ),
+              ),
             Center(
               child: TextButton.icon(
                 onPressed: _isLoading ? null : _scanReceipt,
@@ -185,13 +227,16 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                 final amountText = _amountController.text.trim();
                 if (description.isEmpty || amountText.isEmpty) return;
 
-                final amount = double.tryParse(amountText);
-                if (amount == null || amount <= 0) {
+                final inputAmount = double.tryParse(amountText);
+                if (inputAmount == null || inputAmount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Số tiền không hợp lệ')),
                   );
                   return;
                 }
+                
+                final exchangeRate = _exchangeRates[_selectedCurrency] ?? 1.0;
+                final amountInVND = inputAmount * exchangeRate;
 
                 final user = ref.read(authStateProvider).value;
                 if (user != null) {
@@ -219,7 +264,7 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         id: '',
                         groupId: widget.groupId,
                         description: description,
-                        amount: amount,
+                        amount: amountInVND,
                         category: _selectedCategory,
                         paidBy: user.uid,
                         frequency: _frequency,
@@ -233,11 +278,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         id: '',
                         groupId: widget.groupId,
                         description: description,
-                        amount: amount,
+                        amount: amountInVND,
                         category: _selectedCategory,
                         paidBy: user.uid,
                         date: _selectedDate,
                         type: _transactionType,
+                        currency: _selectedCurrency,
+                        originalAmount: _selectedCurrency != 'VND' ? inputAmount : null,
+                        exchangeRate: exchangeRate,
                       );
                       await ref.read(expenseServiceProvider).addExpense(expense);
                       
@@ -246,11 +294,14 @@ class _AddExpenseScreenState extends ConsumerState<AddExpenseScreen> {
                         id: '', // Will be generated by Firestore
                         groupId: widget.groupId,
                         description: description,
-                        amount: amount,
+                        amount: amountInVND,
                         category: _selectedCategory,
                         paidBy: user.uid,
                         date: _selectedDate,
                         type: _transactionType,
+                        currency: _selectedCurrency,
+                        originalAmount: _selectedCurrency != 'VND' ? inputAmount : null,
+                        exchangeRate: exchangeRate,
                       );
                       await ref.read(expenseServiceProvider).addExpense(expense);
                     }

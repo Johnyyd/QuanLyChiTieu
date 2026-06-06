@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../groups/models/group_model.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/screens/add_expense_screen.dart';
@@ -78,110 +79,15 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                 centerTitle: true,
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 iconTheme: const IconThemeData(color: Colors.white),
-
-                flexibleSpace: FlexibleSpaceBar(
-                  background: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: SafeArea(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 40, left: 16, right: 16),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                color: Colors.white.withValues(alpha: 0.2), // Glassmorphism
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.1),
-                                    blurRadius: 10,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                                children: [
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text('Bạn cần trả', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        currencyFormat.format(youOwe),
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                      ),
-                                    ],
-                                  ),
-                                  Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
-                                  Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Text('Bạn sẽ nhận', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        currencyFormat.format(youAreOwed),
-                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                            if (group.budget != null) ...[
-                              const SizedBox(height: 16),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Ngân sách nhóm:', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                      Text(
-                                        '${currencyFormat.format(totalExpense)} / ${currencyFormat.format(group.budget)}',
-                                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: LinearProgressIndicator(
-                                      value: (totalExpense / group.budget!).clamp(0.0, 1.0),
-                                      backgroundColor: Colors.white.withValues(alpha: 0.2),
-                                      valueColor: AlwaysStoppedAnimation<Color>(
-                                        totalExpense > group.budget! ? Theme.of(context).colorScheme.error : Colors.greenAccent,
-                                      ),
-                                      minHeight: 8,
-                                    ),
-                                  ),
-                                  if (totalExpense > group.budget!)
-                                    Padding(
-                                      padding: const EdgeInsets.only(top: 4),
-                                      child: Text(
-                                        'Đã vượt ngân sách!',
-                                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11, fontWeight: FontWeight.bold),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
                 actions: [
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    tooltip: 'Chia sẻ mã nhóm',
+                    onPressed: () {
+                      Share.share('Tham gia nhóm quản lý chi tiêu "${group.name}" bằng mã: ${group.id}\n'
+                          'Tải app tại: https://example.com/download');
+                    },
+                  ),
                   PopupMenuButton<String>(
                     onSelected: (value) async {
                       if (value == 'recurring') {
@@ -321,8 +227,112 @@ class _GroupDetailScreenState extends ConsumerState<GroupDetailScreen> {
                         ),
                       );
                     },
+                    tooltip: 'Thông tin nhóm',
                   ),
                 ],
+
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Theme.of(context).colorScheme.primary, Theme.of(context).colorScheme.primary.withValues(alpha: 0.7)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 40, left: 16, right: 16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.2), // Glassmorphism
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.1),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 5),
+                                  ),
+                                ],
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Bạn cần trả', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currencyFormat.format(youOwe),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(width: 1, height: 40, color: Colors.white.withValues(alpha: 0.3)),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Bạn sẽ nhận', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currencyFormat.format(youAreOwed),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                            if (group.budget != null) ...[
+                              const SizedBox(height: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Ngân sách nhóm:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      Text(
+                                        '${currencyFormat.format(totalExpense)} / ${currencyFormat.format(group.budget)}',
+                                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: (totalExpense / group.budget!).clamp(0.0, 1.0),
+                                      backgroundColor: Colors.white.withValues(alpha: 0.2),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        totalExpense > group.budget! ? Theme.of(context).colorScheme.error : Colors.greenAccent,
+                                      ),
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                  if (totalExpense > group.budget!)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Đã vượt ngân sách!',
+                                        style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               if (expenses.isEmpty)
                 SliverFillRemaining(

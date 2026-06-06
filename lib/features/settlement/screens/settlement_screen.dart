@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../groups/models/group_model.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../services/settlement_service.dart';
@@ -183,15 +184,42 @@ class SettlementScreen extends ConsumerWidget {
                           ],
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: null, // Logic handled by InkWell or outer onTap, but we want button visual
-                          icon: const Icon(Icons.check_circle_outline),
-                          label: const Text('Xác nhận đã thanh toán'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.grey.shade100, // Make it look clickable inside card
-                            foregroundColor: Theme.of(context).colorScheme.primary,
-                            elevation: 0,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton.icon(
+                                onPressed: null, // Logic handled by InkWell or outer onTap, but we want button visual
+                                icon: const Icon(Icons.check_circle_outline),
+                                label: const Text('Xác nhận đã thanh toán'),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey.shade100, // Make it look clickable inside card
+                                  foregroundColor: Theme.of(context).colorScheme.primary,
+                                  elevation: 0,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(
+                              onPressed: () async {
+                                final fromUser = await ref.read(userProfileProvider(tx.fromUserId).future);
+                                final toUser = await ref.read(userProfileProvider(tx.toUserId).future);
+                                
+                                final fromName = fromUser?.name ?? 'Ẩn danh';
+                                final toName = toUser?.name ?? 'Ẩn danh';
+                                final amountText = currencyFormat.format(tx.amount);
+                                
+                                final message = '🔔 Nhắc nợ nhóm: ${group.name}\n\n'
+                                    '👤 $fromName cần trả cho $toName\n'
+                                    '💰 Số tiền: $amountText\n\n'
+                                    'Vui lòng thanh toán sớm nhé!';
+                                    
+                                Share.share(message);
+                              },
+                              icon: const Icon(Icons.share),
+                              color: Theme.of(context).colorScheme.primary,
+                              tooltip: 'Chia sẻ nhắc nợ',
+                            ),
+                          ],
                         ),
                       ],
                     ),

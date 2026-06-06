@@ -18,6 +18,15 @@ class SavingsScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Quỹ tiết kiệm'),
         centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.add),
+            tooltip: 'Thêm mục tiêu',
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const AddSavingsScreen()));
+            },
+          ),
+        ],
       ),
       body: savingsAsync.when(
         data: (goals) {
@@ -125,13 +134,6 @@ class SavingsScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, trace) => Center(child: Text('Lỗi: $e')),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (context) => const AddSavingsScreen()));
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Thêm mục tiêu'),
       ),
     );
   }
