@@ -36,6 +36,7 @@ class _MainLayoutScreenState extends State<MainLayoutScreen> {
                   const SnackBar(content: Text('Vui lòng chọn một nhóm để thêm chi tiêu')),
                 );
               },
+              heroTag: 'main_fab',
               backgroundColor: AppTheme.primaryColor,
               icon: const Icon(Icons.add, color: Colors.white),
               label: const Text('Thêm chi tiêu', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),

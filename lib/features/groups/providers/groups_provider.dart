@@ -60,6 +60,28 @@ class GroupService {
     await docRef.update({'members': members});
   }
 
+  Future<void> leaveGroup(String groupId, String userId) async {
+    final docRef = _firestore.collection('groups').doc(groupId);
+    final docSnap = await docRef.get();
+
+    if (!docSnap.exists) {
+      throw Exception('Không tìm thấy nhóm với ID này.');
+    }
+
+    final groupData = docSnap.data()!;
+    List<String> members = List<String>.from(groupData['members'] ?? []);
+    
+    if (members.contains(userId)) {
+      members.remove(userId);
+      if (members.isEmpty) {
+        // Xóa nhóm nếu không còn thành viên nào
+        await docRef.delete();
+      } else {
+        await docRef.update({'members': members});
+      }
+    }
+  }
+
   Future<AppGroup> getOrCreatePersonalGroup(String userId) async {
     final snapshot = await _firestore
         .collection('groups')

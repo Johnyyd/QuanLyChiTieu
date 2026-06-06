@@ -65,6 +65,7 @@ class PersonalScreen extends ConsumerWidget {
       ),
       floatingActionButton: personalGroupAsync.hasValue && personalGroupAsync.value != null
           ? FloatingActionButton.extended(
+              heroTag: 'personal_fab',
               onPressed: () {
                 Navigator.push(
                   context,

@@ -44,4 +44,24 @@ class ExpenseService {
 
     await docRef.set(newExpense.toMap());
   }
+
+  Future<void> updateExpense(Expense expense) async {
+    final docRef = _firestore
+        .collection('groups')
+        .doc(expense.groupId)
+        .collection('expenses')
+        .doc(expense.id);
+        
+    await docRef.update(expense.toMap());
+  }
+
+  Future<void> deleteExpense(String groupId, String expenseId) async {
+    final docRef = _firestore
+        .collection('groups')
+        .doc(groupId)
+        .collection('expenses')
+        .doc(expenseId);
+        
+    await docRef.delete();
+  }
 }

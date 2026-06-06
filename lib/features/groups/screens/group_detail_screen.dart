@@ -61,6 +61,7 @@ class GroupDetailScreen extends ConsumerWidget {
                 centerTitle: true,
                 backgroundColor: AppTheme.primaryColor,
                 iconTheme: const IconThemeData(color: Colors.white),
+
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
                     decoration: BoxDecoration(
@@ -157,6 +158,54 @@ class GroupDetailScreen extends ConsumerWidget {
                   ),
                 ),
                 actions: [
+                  PopupMenuButton<String>(
+                    onSelected: (value) async {
+                      if (value == 'leave_group') {
+                        final confirm = await showDialog<bool>(
+                          context: context,
+                          builder: (dialogContext) => AlertDialog(
+                            title: const Text('Rời nhóm'),
+                            content: const Text('Bạn có chắc chắn muốn rời nhóm này không? Mọi dữ liệu chi tiêu của bạn trong nhóm vẫn sẽ được giữ lại.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext, false),
+                                child: const Text('Hủy'),
+                              ),
+                              TextButton(
+                                onPressed: () => Navigator.pop(dialogContext, true),
+                                style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                child: const Text('Rời nhóm'),
+                              ),
+                            ],
+                          ),
+                        );
+
+                        if (confirm == true && currentUser != null) {
+                          try {
+                            await ref.read(groupServiceProvider).leaveGroup(group.id, currentUser.uid);
+                            if (context.mounted) {
+                              Navigator.pop(context); // Go back to groups list
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Đã rời nhóm thành công')),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Lỗi: $e')),
+                              );
+                            }
+                          }
+                        }
+                      }
+                    },
+                    itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                      const PopupMenuItem<String>(
+                        value: 'leave_group',
+                        child: Text('Rời nhóm', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
                   IconButton(
                     icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
                     onPressed: () {
@@ -176,10 +225,12 @@ class GroupDetailScreen extends ConsumerWidget {
                         context: context,
                         builder: (context) => AlertDialog(
                           title: const Text('Thông tin nhóm'),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
+                          content: SizedBox(
+                            width: double.maxFinite,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
                               Text('Tên nhóm: ${group.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
                               const SizedBox(height: 8),
                               Text('Số thành viên: ${group.members.length}'),
@@ -225,7 +276,8 @@ class GroupDetailScreen extends ConsumerWidget {
                               ),
                             ],
                           ),
-                          actions: [
+                        ),
+                        actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(context),
                               child: const Text('Đóng'),
@@ -268,6 +320,7 @@ class GroupDetailScreen extends ConsumerWidget {
         error: (e, trace) => Center(child: Text('Lỗi: $e')),
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'group_detail_fab',
         onPressed: () {
           Navigator.push(
             context,

@@ -7,6 +7,7 @@ import '../../../core/constants/category_constants.dart';
 import '../../groups/providers/groups_provider.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/models/expense_model.dart';
+import '../../auth/providers/user_provider.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
@@ -142,6 +143,7 @@ class _AdvancedReportChart extends ConsumerWidget {
         double totalIncome = 0;
         double totalExpense = 0;
         final Map<String, double> categoryTotals = {};
+        final Map<String, double> userTotals = {};
 
         for (var e in expenses) {
           if (e.type == 'income') {
@@ -149,6 +151,7 @@ class _AdvancedReportChart extends ConsumerWidget {
           } else if (e.type == 'expense') {
             totalExpense += e.amount;
             categoryTotals[e.category] = (categoryTotals[e.category] ?? 0) + e.amount;
+            userTotals[e.paidBy] = (userTotals[e.paidBy] ?? 0) + e.amount;
           }
         }
 
@@ -157,6 +160,10 @@ class _AdvancedReportChart extends ConsumerWidget {
 
         // Sắp xếp danh mục theo số tiền giảm dần
         final sortedCategories = categoryTotals.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        // Sắp xếp người dùng theo số tiền giảm dần
+        final sortedUsers = userTotals.entries.toList()
           ..sort((a, b) => b.value.compareTo(a.value));
 
         return SingleChildScrollView(
@@ -269,6 +276,59 @@ class _AdvancedReportChart extends ConsumerWidget {
                     );
                   },
                 ),
+
+                // 4. Danh sách chi tiết từng người dùng
+                if (sortedUsers.isNotEmpty) ...[
+                  const SizedBox(height: 32),
+                  const Text('Chi tiêu theo thành viên', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  Card(
+                    elevation: 2,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: sortedUsers.length,
+                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      itemBuilder: (context, index) {
+                        final entry = sortedUsers[index];
+                        final userId = entry.key;
+                        final amount = entry.value;
+                        final percentage = (amount / totalExpense) * 100;
+                        
+                        return Consumer(
+                          builder: (context, ref, _) {
+                            final userAsync = ref.watch(userProfileProvider(userId));
+                            return ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: AppTheme.primaryColor.withValues(alpha: 0.1),
+                                child: const Icon(Icons.person, color: AppTheme.primaryColor),
+                              ),
+                              title: userAsync.when(
+                                data: (user) => Text(user?.name ?? 'Người dùng', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                loading: () => const Text('Đang tải...', style: TextStyle(fontSize: 14)),
+                                error: (_, __) => const Text('Lỗi', style: TextStyle(fontSize: 14)),
+                              ),
+                              subtitle: LinearProgressIndicator(
+                                value: percentage / 100,
+                                backgroundColor: Colors.grey.shade200,
+                                color: AppTheme.primaryColor,
+                              ),
+                              trailing: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(currencyFormat.format(amount), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                  Text('${percentage.toStringAsFixed(1)}%', style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ],
             ],
           ),

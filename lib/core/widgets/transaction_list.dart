@@ -2,11 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/expenses/models/expense_model.dart';
+import '../../features/expenses/providers/expenses_provider.dart';
+import '../../features/expenses/screens/edit_expense_screen.dart';
 import '../../features/auth/providers/user_provider.dart';
+import '../../features/auth/providers/auth_provider.dart';
 import '../theme/app_theme.dart';
 import '../constants/category_constants.dart';
 
-class TransactionList extends StatelessWidget {
+class TransactionList extends ConsumerWidget {
   final List<Expense> expenses;
   final bool isPersonal;
 
@@ -17,7 +20,7 @@ class TransactionList extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (expenses.isEmpty) {
       return const Center(
         child: Padding(
@@ -152,6 +155,83 @@ class TransactionList extends StatelessWidget {
                       color: isIncome ? AppTheme.successColor : Colors.red.shade700,
                     ),
                   ),
+                  onLongPress: () {
+                    final currentUser = ref.read(authStateProvider).value;
+                    if (currentUser == null) return;
+                    
+                    if (expense.paidBy != currentUser.uid) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Bạn chỉ có thể sửa/xóa giao dịch do chính bạn tạo')),
+                      );
+                      return;
+                    }
+
+                    showModalBottomSheet(
+                      context: context,
+                      builder: (bottomSheetContext) => SafeArea(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.edit, color: Colors.blue),
+                              title: const Text('Sửa giao dịch'),
+                              onTap: () {
+                                Navigator.pop(bottomSheetContext);
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => EditExpenseScreen(expense: expense),
+                                  ),
+                                );
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.delete, color: Colors.red),
+                              title: const Text('Xóa giao dịch'),
+                              onTap: () async {
+                                Navigator.pop(bottomSheetContext);
+                                final confirm = await showDialog<bool>(
+                                  context: context,
+                                  builder: (dialogContext) => AlertDialog(
+                                    title: const Text('Xóa giao dịch'),
+                                    content: const Text('Bạn có chắc chắn muốn xóa giao dịch này không?'),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(dialogContext, false),
+                                        child: const Text('Hủy'),
+                                      ),
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(dialogContext, true),
+                                        style: TextButton.styleFrom(foregroundColor: Colors.red),
+                                        child: const Text('Xóa'),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                                
+                                if (confirm == true) {
+                                  try {
+                                    await ref.read(expenseServiceProvider).deleteExpense(expense.groupId, expense.id);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Đã xóa giao dịch')),
+                                      );
+                                    }
+                                  } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(content: Text('Lỗi: $e')),
+                                      );
+                                    }
+                                  }
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 );
               }),
             ],
