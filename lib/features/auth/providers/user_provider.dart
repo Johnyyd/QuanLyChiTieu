@@ -12,7 +12,7 @@ class UserProfile {
     return UserProfile(
       uid: uid,
       email: data['email'] ?? '',
-      name: data['name'] ?? 'Không rõ',
+      name: data['displayName'] ?? data['name'] ?? 'Không rõ',
     );
   }
 }

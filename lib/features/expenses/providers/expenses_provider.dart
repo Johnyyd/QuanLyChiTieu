@@ -37,7 +37,9 @@ class ExpenseService {
       amount: expense.amount,
       category: expense.category,
       paidBy: expense.paidBy,
+      toUserId: expense.toUserId,
       date: expense.date,
+      type: expense.type,
     );
 
     await docRef.set(newExpense.toMap());

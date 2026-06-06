@@ -89,6 +89,29 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: const Text('Đăng Nhập', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(height: 16),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  try {
+                    await ref.read(authProvider).signInWithGoogle();
+                    // Login successful, navigation handled by auth state listener
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi đăng nhập Google: ${e.toString()}')),
+                      );
+                    }
+                  }
+                },
+                icon: Image.network(
+                  'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/120px-Google_%22G%22_logo.svg.png',
+                  height: 24,
+                ),
+                label: const Text('Đăng nhập bằng Google', style: TextStyle(fontSize: 16)),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
               TextButton(
                 onPressed: () {
                   Navigator.push(

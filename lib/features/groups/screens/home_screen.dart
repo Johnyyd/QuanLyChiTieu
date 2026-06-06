@@ -5,6 +5,7 @@ import '../providers/groups_provider.dart';
 import 'create_group_screen.dart';
 import 'join_group_screen.dart';
 import 'group_detail_screen.dart';
+import '../../../core/theme/app_theme.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,11 +18,40 @@ class HomeScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('Quản Lý Chi Tiêu'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              ref.read(authProvider).signOut();
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.add_circle_outline),
+            tooltip: 'Thêm hoặc tham gia nhóm',
+            onSelected: (value) {
+              if (value == 'create') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const CreateGroupScreen()),
+                );
+              } else if (value == 'join') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const JoinGroupScreen()),
+                );
+              }
             },
+            itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+              const PopupMenuItem<String>(
+                value: 'create',
+                child: ListTile(
+                  leading: Icon(Icons.group_add),
+                  title: Text('Tạo nhóm mới'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+              const PopupMenuItem<String>(
+                value: 'join',
+                child: ListTile(
+                  leading: Icon(Icons.qr_code_scanner),
+                  title: Text('Tham gia nhóm'),
+                  contentPadding: EdgeInsets.zero,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -32,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.group, size: 80, color: Colors.teal),
+                  const Icon(Icons.group, size: 80, color: AppTheme.primaryColor),
                   const SizedBox(height: 16),
                   const Text(
                     'Chưa có nhóm nào',
@@ -80,8 +110,8 @@ class HomeScreen extends ConsumerWidget {
               final group = groups[index];
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: Colors.teal.shade100,
-                  child: const Icon(Icons.group, color: Colors.teal),
+                  backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                  child: const Icon(Icons.group, color: AppTheme.primaryColor),
                 ),
                 title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text('${group.members.length} thành viên'),
@@ -101,19 +131,6 @@ class HomeScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, trace) => Center(child: Text('Lỗi tải nhóm: $e')),
       ),
-      floatingActionButton: groupsAsyncValue.hasValue && groupsAsyncValue.value!.isNotEmpty
-          ? FloatingActionButton(
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const CreateGroupScreen(),
-                  ),
-                );
-              },
-              child: const Icon(Icons.add),
-            )
-          : null,
     );
   }
 }

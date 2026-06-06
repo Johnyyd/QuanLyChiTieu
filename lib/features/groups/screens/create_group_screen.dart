@@ -12,10 +12,12 @@ class CreateGroupScreen extends ConsumerStatefulWidget {
 
 class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
   final _nameController = TextEditingController();
+  final _budgetController = TextEditingController();
 
   @override
   void dispose() {
     _nameController.dispose();
+    _budgetController.dispose();
     super.dispose();
   }
 
@@ -44,16 +46,30 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
               ),
               autofocus: true,
             ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _budgetController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: 'Ngân sách dự kiến (không bắt buộc)',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.account_balance_wallet),
+                suffixText: 'đ',
+              ),
+            ),
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () async {
                 final name = _nameController.text.trim();
                 if (name.isEmpty) return;
 
+                final budgetText = _budgetController.text.replaceAll(RegExp(r'[^0-9]'), '');
+                final budget = budgetText.isNotEmpty ? double.tryParse(budgetText) : null;
+
                 final user = ref.read(authStateProvider).value;
                 if (user != null) {
                   try {
-                    await ref.read(groupServiceProvider).createGroup(name, user.uid);
+                    await ref.read(groupServiceProvider).createGroup(name, user.uid, budget: budget);
                     if (context.mounted) {
                       Navigator.pop(context); // Quay về màn hình Home
                     }

@@ -6,6 +6,8 @@ class AppGroup {
   final List<String> members;
   final DateTime createdAt;
   final String createdBy;
+  final double? budget;
+  final bool isPersonal;
 
   AppGroup({
     required this.id,
@@ -13,6 +15,8 @@ class AppGroup {
     required this.members,
     required this.createdAt,
     required this.createdBy,
+    this.budget,
+    this.isPersonal = false,
   });
 
   factory AppGroup.fromMap(Map<String, dynamic> data, String documentId) {
@@ -22,6 +26,8 @@ class AppGroup {
       members: List<String>.from(data['members'] ?? []),
       createdAt: (data['createdAt'] as Timestamp).toDate(),
       createdBy: data['createdBy'] ?? '',
+      budget: data['budget'] != null ? (data['budget'] as num).toDouble() : null,
+      isPersonal: data['isPersonal'] ?? false,
     );
   }
 
@@ -31,6 +37,8 @@ class AppGroup {
       'members': members,
       'createdAt': Timestamp.fromDate(createdAt),
       'createdBy': createdBy,
+      if (budget != null) 'budget': budget,
+      'isPersonal': isPersonal,
     };
   }
 }

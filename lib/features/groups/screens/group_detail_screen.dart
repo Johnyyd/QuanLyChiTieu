@@ -2,11 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../groups/models/group_model.dart';
 import '../../expenses/providers/expenses_provider.dart';
 import '../../expenses/screens/add_expense_screen.dart';
 import '../../settlement/screens/settlement_screen.dart';
+import '../../expenses/models/expense_model.dart';
 import '../../auth/providers/user_provider.dart';
+import '../providers/groups_provider.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../../settlement/services/settlement_service.dart';
+import '../../../core/theme/app_theme.dart';
+import '../../../core/constants/category_constants.dart';
+import '../../../core/widgets/transaction_list.dart';
 
 class GroupDetailScreen extends ConsumerWidget {
   final AppGroup group;
@@ -16,148 +25,249 @@ class GroupDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final expensesAsync = ref.watch(expensesProvider(group.id));
+    final currentUser = ref.watch(authStateProvider).value;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(group.name),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_balance_wallet),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => SettlementScreen(group: group),
-                ),
-              );
-            },
-            tooltip: 'Tổng kết',
-          ),
-          IconButton(
-            icon: const Icon(Icons.info_outline),
-            onPressed: () {
-              showDialog(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: const Text('Thông tin nhóm'),
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Tên nhóm: ${group.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
-                      Text('Số thành viên: ${group.members.length}'),
-                      const SizedBox(height: 16),
-                      const Text('Mã nhóm để mời bạn bè:', style: TextStyle(color: Colors.grey)),
-                      const SizedBox(height: 4),
-                      Container(
-                        padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4, right: 4),
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      body: expensesAsync.when(
+        data: (expenses) {
+          final settlementService = ref.read(settlementServiceProvider);
+          final transactions = settlementService.calculateSettlements(group, expenses);
+          
+          double youOwe = 0;
+          double youAreOwed = 0;
+          double totalExpense = expenses.where((e) => e.type != 'settlement').fold(0.0, (sum, e) {
+            return e.type == 'income' ? sum - e.amount : sum + e.amount;
+          });
+          
+          if (currentUser != null) {
+            for (var tx in transactions) {
+              if (tx.fromUserId == currentUser.uid) {
+                youOwe += tx.amount;
+              } else if (tx.toUserId == currentUser.uid) {
+                youAreOwed += tx.amount;
+              }
+            }
+          }
+
+          final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+
+          return CustomScrollView(
+            slivers: [
+              SliverAppBar(
+                expandedHeight: group.budget != null ? 300.0 : 240.0,
+                floating: false,
+                pinned: true,
+                title: Text(group.name, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+                centerTitle: true,
+                backgroundColor: AppTheme.primaryColor,
+                iconTheme: const IconThemeData(color: Colors.white),
+                flexibleSpace: FlexibleSpaceBar(
+                  background: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [AppTheme.primaryColor, AppTheme.primaryColor.withOpacity(0.7)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                    child: SafeArea(
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 40, left: 16, right: 16),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Expanded(
-                              child: Text(
-                                group.id,
-                                style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
-                                overflow: TextOverflow.ellipsis,
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.2), // Glassmorphism
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: Colors.white.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                children: [
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Bạn cần trả', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currencyFormat.format(youOwe),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                      ),
+                                    ],
+                                  ),
+                                  Container(width: 1, height: 40, color: Colors.white.withOpacity(0.3)),
+                                  Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Text('Bạn sẽ nhận', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currencyFormat.format(youAreOwed),
+                                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                                      ),
+                                    ],
+                                  ),
+                                ],
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.copy, color: Colors.teal),
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: group.id));
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(content: Text('Đã sao chép mã nhóm!')),
-                                );
-                              },
-                            ),
+                            if (group.budget != null) ...[
+                              const SizedBox(height: 16),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Ngân sách nhóm:', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                      Text(
+                                        '${currencyFormat.format(totalExpense)} / ${currencyFormat.format(group.budget)}',
+                                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  ClipRRect(
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: LinearProgressIndicator(
+                                      value: (totalExpense / group.budget!).clamp(0.0, 1.0),
+                                      backgroundColor: Colors.white.withOpacity(0.2),
+                                      valueColor: AlwaysStoppedAnimation<Color>(
+                                        totalExpense > group.budget! ? AppTheme.errorColor : Colors.greenAccent,
+                                      ),
+                                      minHeight: 8,
+                                    ),
+                                  ),
+                                  if (totalExpense > group.budget!)
+                                    const Padding(
+                                      padding: EdgeInsets.only(top: 4),
+                                      child: Text(
+                                        'Đã vượt ngân sách!',
+                                        style: TextStyle(color: AppTheme.errorColor, fontSize: 11, fontWeight: FontWeight.bold),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      const Text('Hãy gửi mã này cho bạn bè để họ nhập ở màn hình Tham gia nhóm.',
-                          style: TextStyle(fontSize: 12, fontStyle: FontStyle.italic)),
-                    ],
-                  ),
-                  actions: [
-                    TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Đóng'),
                     ),
-                  ],
+                  ),
                 ),
-              );
-            },
-            tooltip: 'Thông tin nhóm',
-          ),
-        ],
-      ),
-      body: expensesAsync.when(
-        data: (expenses) {
-          if (expenses.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.receipt_long, size: 80, color: Colors.teal.shade200),
-                  const SizedBox(height: 16),
-                  const Text('Chưa có khoản chi tiêu nào'),
+                actions: [
+                  IconButton(
+                    icon: const Icon(Icons.account_balance_wallet, color: Colors.white),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => SettlementScreen(group: group),
+                        ),
+                      );
+                    },
+                    tooltip: 'Tổng kết',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.info_outline, color: Colors.white),
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (context) => AlertDialog(
+                          title: const Text('Thông tin nhóm'),
+                          content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Tên nhóm: ${group.name}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                              const SizedBox(height: 8),
+                              Text('Số thành viên: ${group.members.length}'),
+                              const SizedBox(height: 16),
+                              Center(
+                                child: QrImageView(
+                                  data: group.id,
+                                  version: QrVersions.auto,
+                                  size: 150.0,
+                                  backgroundColor: Colors.white,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text('Mã nhóm để mời bạn bè:', style: TextStyle(color: Colors.grey)),
+                              const SizedBox(height: 4),
+                              Container(
+                                padding: const EdgeInsets.only(left: 12, top: 4, bottom: 4, right: 4),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        group.id,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.copy, color: AppTheme.primaryColor),
+                                      onPressed: () {
+                                        Clipboard.setData(ClipboardData(text: group.id));
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(content: Text('Đã sao chép mã nhóm!')),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text('Đóng'),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: expenses.length,
-            itemBuilder: (context, index) {
-              final expense = expenses[index];
-              final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
-              return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Colors.teal.shade50,
-                  child: Icon(Icons.category, color: Colors.teal.shade700),
-                ),
-                title: Text(expense.description, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('${expense.category} • ${DateFormat('dd/MM/yyyy').format(expense.date)}'),
-                    Consumer(
-                      builder: (context, ref, _) {
-                        final userAsync = ref.watch(userProfileProvider(expense.paidBy));
-                        return userAsync.when(
-                          data: (user) => Text(
-                            'Trả bởi: ${user?.name ?? 'Không rõ'}',
-                            style: const TextStyle(fontSize: 12, color: Colors.teal),
-                          ),
-                          loading: () => const Text('Đang tải...', style: TextStyle(fontSize: 12)),
-                          error: (_, __) => const Text('Lỗi', style: TextStyle(fontSize: 12)),
-                        );
-                      },
+              if (expenses.isEmpty)
+                SliverFillRemaining(
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.receipt_long, size: 80, color: AppTheme.primaryColor.withOpacity(0.3)),
+                        const SizedBox(height: 16),
+                        const Text('Chưa có khoản chi tiêu nào', style: TextStyle(color: AppTheme.textSecondary)),
+                      ],
                     ),
-                  ],
-                ),
-                trailing: Text(
-                  currencyFormat.format(expense.amount),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.redAccent,
                   ),
+                )
+              else ...[
+                SliverToBoxAdapter(
+                  child: _buildPieChart(expenses),
                 ),
-                isThreeLine: true,
-              );
-            },
+                SliverToBoxAdapter(
+                  child: TransactionList(expenses: expenses, isPersonal: false),
+                ),
+                const SliverToBoxAdapter(
+                  child: SizedBox(height: 80), // Tạo khoảng trống ở dưới cùng để không bị che bởi FAB
+                ),
+              ],
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, trace) => Center(child: Text('Lỗi: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
+      floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
             context,
@@ -166,7 +276,88 @@ class GroupDetailScreen extends ConsumerWidget {
             ),
           );
         },
-        child: const Icon(Icons.add),
+        icon: const Icon(Icons.add),
+        label: const Text('Thêm chi tiêu'),
+      ),
+    );
+  }
+
+  Widget _buildPieChart(List<Expense> expenses) {
+    // Chỉ lấy các expense thực sự, không lấy settlement
+    final realExpenses = expenses.where((e) => e.type != 'settlement').toList();
+    if (realExpenses.isEmpty) return const SizedBox.shrink();
+
+    final Map<String, double> categoryTotals = {};
+    for (var e in realExpenses) {
+      if (e.type == 'income') {
+        // Có thể không hiển thị thu nhập trong biểu đồ chi tiêu, hoặc gom vào 1 mục riêng.
+        // Tạm thời loại bỏ thu nhập khỏi biểu đồ tròn phân bổ chi tiêu.
+      } else {
+        categoryTotals[e.category] = (categoryTotals[e.category] ?? 0) + e.amount;
+      }
+    }
+
+    final currencyFormat = NumberFormat.currency(locale: 'vi_VN', symbol: 'đ');
+    final List<PieChartSectionData> sections = [];
+    final List<Widget> legendItems = [];
+
+    categoryTotals.forEach((category, total) {
+      final color = CategoryConstants.getColor(category);
+      sections.add(
+        PieChartSectionData(
+          color: color,
+          value: total,
+          title: '', // Ẩn text bên trong biểu đồ để tránh đè chữ
+          radius: 40,
+        ),
+      );
+      legendItems.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              Container(width: 12, height: 12, decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(category, style: const TextStyle(fontSize: 13, color: AppTheme.textPrimary), overflow: TextOverflow.ellipsis),
+              ),
+              Text(currencyFormat.format(total), style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppTheme.textSecondary)),
+            ],
+          ),
+        ),
+      );
+    });
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: BorderSide(color: Colors.grey.shade200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Thống kê danh mục', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.textPrimary)),
+            const SizedBox(height: 24),
+            SizedBox(
+              height: 160,
+              child: PieChart(
+                PieChartData(
+                  sectionsSpace: 2,
+                  centerSpaceRadius: 40,
+                  sections: sections,
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Column(
+              children: legendItems,
+            ),
+          ],
+        ),
       ),
     );
   }

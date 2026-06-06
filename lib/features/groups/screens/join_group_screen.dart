@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/groups_provider.dart';
+import 'qr_scanner_screen.dart';
 
 class JoinGroupScreen extends ConsumerStatefulWidget {
   const JoinGroupScreen({super.key});
@@ -79,6 +80,36 @@ class _JoinGroupScreenState extends ConsumerState<JoinGroupScreen> {
               child: _isLoading 
                   ? const CircularProgressIndicator(color: Colors.white)
                   : const Text('Tham gia', style: TextStyle(fontSize: 16)),
+            ),
+            const SizedBox(height: 16),
+            const Row(
+              children: [
+                Expanded(child: Divider()),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Text('HOẶC', style: TextStyle(color: Colors.grey)),
+                ),
+                Expanded(child: Divider()),
+              ],
+            ),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () async {
+                final scannedId = await Navigator.push<String>(
+                  context,
+                  MaterialPageRoute(builder: (context) => const QRScannerScreen()),
+                );
+                if (scannedId != null && scannedId.isNotEmpty) {
+                  _groupIdController.text = scannedId;
+                  // Optionally trigger join automatically:
+                  // if (!_isLoading) { ... join logic ... }
+                }
+              },
+              icon: const Icon(Icons.qr_code_scanner),
+              label: const Text('Quét mã QR'),
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
             ),
           ],
         ),

@@ -31,9 +31,24 @@ class SettlementService {
 
     double totalExpense = 0;
     for (var expense in expenses) {
-      if (paidAmounts.containsKey(expense.paidBy)) {
-        paidAmounts[expense.paidBy] = paidAmounts[expense.paidBy]! + expense.amount;
-        totalExpense += expense.amount;
+      if (expense.type == 'settlement') {
+        if (paidAmounts.containsKey(expense.paidBy)) {
+          paidAmounts[expense.paidBy] = paidAmounts[expense.paidBy]! + expense.amount;
+        }
+        final toUserId = expense.toUserId;
+        if (toUserId != null && paidAmounts.containsKey(toUserId)) {
+          paidAmounts[toUserId] = paidAmounts[toUserId]! - expense.amount;
+        }
+      } else if (expense.type == 'income') {
+        if (paidAmounts.containsKey(expense.paidBy)) {
+          paidAmounts[expense.paidBy] = paidAmounts[expense.paidBy]! - expense.amount;
+          totalExpense -= expense.amount;
+        }
+      } else {
+        if (paidAmounts.containsKey(expense.paidBy)) {
+          paidAmounts[expense.paidBy] = paidAmounts[expense.paidBy]! + expense.amount;
+          totalExpense += expense.amount;
+        }
       }
     }
 
