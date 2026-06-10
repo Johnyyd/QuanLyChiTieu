@@ -9,6 +9,195 @@ import '../../../core/providers/settings_provider.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  void _showEditNameDialog(BuildContext context, WidgetRef ref, String currentName) {
+    final controller = TextEditingController(text: currentName == 'Chưa cập nhật tên' ? '' : currentName);
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Cập nhật tên hiển thị'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Tên mới',
+              border: OutlineInputBorder(),
+            ),
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newName = controller.text.trim();
+                if (newName.isNotEmpty && newName != currentName) {
+                  Navigator.pop(context); // Close dialog first
+                  try {
+                    await ref.read(authProvider).updateDisplayName(newName);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Cập nhật tên thành công!')),
+                      );
+                      final user = ref.read(authStateProvider).value;
+                      if (user != null) {
+                         ref.invalidate(userProfileProvider(user.uid));
+                      }
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Lỗi cập nhật tên: $e')),
+                      );
+                    }
+                  }
+                } else {
+                  Navigator.pop(context);
+                }
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+    final currentPasswordController = TextEditingController();
+    final newPasswordController = TextEditingController();
+    final confirmPasswordController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Đổi mật khẩu'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: currentPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu hiện tại', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: newPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu mới', border: OutlineInputBorder()),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Xác nhận mật khẩu mới', border: OutlineInputBorder()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final currentPass = currentPasswordController.text;
+                final newPass = newPasswordController.text;
+                final confirmPass = confirmPasswordController.text;
+
+                if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
+                  return;
+                }
+                if (newPass != confirmPass) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mật khẩu mới không khớp')));
+                  return;
+                }
+
+                Navigator.pop(context); // Close dialog first
+                try {
+                  await ref.read(authProvider).changePassword(currentPass, newPass);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!')));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                  }
+                }
+              },
+              child: const Text('Lưu'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref, bool requiresPassword) {
+    final passwordController = TextEditingController();
+    
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Xoá tài khoản', style: TextStyle(color: Colors.red)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('CẢNH BÁO: Hành động này sẽ xoá VĨNH VIỄN toàn bộ dữ liệu thu chi, nhóm, và thông tin tài khoản của bạn. Bạn không thể hoàn tác.', style: TextStyle(color: Colors.red)),
+              const SizedBox(height: 16),
+              if (requiresPassword) ...[
+                const Text('Vui lòng nhập mật khẩu để xác nhận:'),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: passwordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(labelText: 'Mật khẩu', border: OutlineInputBorder()),
+                ),
+              ] else ...[
+                const Text('Bạn có chắc chắn muốn xoá tài khoản không?'),
+              ],
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Hủy'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final password = passwordController.text;
+                if (requiresPassword && password.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập mật khẩu')));
+                  return;
+                }
+
+                Navigator.pop(context); // Close dialog first
+                try {
+                  await ref.read(authProvider).deleteAccount(requiresPassword ? password : null);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xoá tài khoản thành công')));
+                  }
+                } catch (e) {
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                  }
+                }
+              },
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+              child: const Text('Xoá Vĩnh Viễn', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).value;
@@ -53,6 +242,10 @@ class ProfileScreen extends ConsumerWidget {
                         leading: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
                         title: const Text('Tên hiển thị'),
                         subtitle: Text(userProfile?.name ?? user.displayName ?? 'Chưa cập nhật tên', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        trailing: const Icon(Icons.edit, size: 20),
+                        onTap: () {
+                          _showEditNameDialog(context, ref, userProfile?.name ?? user.displayName ?? 'Chưa cập nhật tên');
+                        },
                       ),
                       const Divider(),
                       ListTile(
@@ -60,6 +253,18 @@ class ProfileScreen extends ConsumerWidget {
                         title: const Text('Email'),
                         subtitle: Text(user.email ?? 'Không rõ', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
+                      // Chỉ hiện Đổi mật khẩu nếu đăng nhập bằng Email (Provider ID là password)
+                      if (user.providerData.any((userInfo) => userInfo.providerId == 'password')) ...[
+                        const Divider(),
+                        ListTile(
+                          leading: Icon(Icons.lock_outline, color: Theme.of(context).colorScheme.primary),
+                          title: const Text('Đổi mật khẩu'),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () {
+                            _showChangePasswordDialog(context, ref);
+                          },
+                        ),
+                      ],
                     ],
                   ),
                 ),
@@ -213,10 +418,19 @@ class ProfileScreen extends ConsumerWidget {
                 icon: const Icon(Icons.logout, color: Colors.white),
                 label: const Text('Đăng xuất', style: TextStyle(color: Colors.white)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.error,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
+              ),
+              const SizedBox(height: 16),
+              TextButton.icon(
+                onPressed: () {
+                  final requiresPassword = user.providerData.any((userInfo) => userInfo.providerId == 'password');
+                  _showDeleteAccountDialog(context, ref, requiresPassword);
+                },
+                icon: const Icon(Icons.delete_forever, color: Colors.red),
+                label: const Text('Xóa tài khoản', style: TextStyle(color: Colors.red)),
               ),
             ],
           );

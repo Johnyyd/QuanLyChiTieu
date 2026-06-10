@@ -113,13 +113,74 @@ Chương này đi sâu vào việc phân tích chi tiết các yêu cầu hệ t
 
 Hệ thống quản lý chi tiêu được mô hình hóa với các tác nhân (Actor) chính tham gia vào quy trình nghiệp vụ:
 
--   **Người dùng (User):** Là đối tượng trung tâm của ứng dụng. Người dùng thực hiện các hành động trực tiếp như đăng nhập, ghi chép giao dịch, xem báo cáo thống kê, tạo nhóm chi tiêu, và tương tác với trợ lý ảo Chatbot AI.
--   **Hệ thống đồng bộ (Sync System):** Đóng vai trò xử lý ngầm, đảm bảo tính nhất quán dữ liệu giữa kho lưu trữ cục bộ trên thiết bị di động (Local Storage) và máy chủ trung tâm (SQL Server).
+-   **Người dùng (User):** Là đối tượng trung tâm của ứng dụng. Người dùng thực hiện các hành động trực tiếp như đăng nhập, ghi chép giao dịch, xem báo cáo thống kê, tạo/tham gia nhóm chi tiêu, và tương tác với trợ lý ảo Chatbot AI.
+
+```mermaid
+flowchart LR 
+    User([Người dùng])
+
+    BUC1("1. Ghi nhận giao dịch cá nhân")
+    BUC2("2. Quản lý chia sẻ chi phí nhóm")
+    BUC3("3. Tham vấn tài chính tự động")
+    BUC4("4. Lập và theo dõi mục tiêu tiết kiệm")
+
+    User --> BUC1
+    User --> BUC2
+    User --> BUC3
+    User --> BUC4
+```
 
 ### 2.2.2. Mô hình hóa quy trình nghiệp vụ
 
-**Quy trình quản lý nhóm chi tiêu chung:**
-Khi một người dùng (Admin) tạo nhóm, hệ thống tạo một ID duy nhất cho nhóm đó. Admin tiến hành thêm các thành viên (Member). Bất kỳ thành viên nào trong nhóm khi phát sinh chi phí chung đều tiến hành tạo một Giao dịch (Expense). Quá trình này yêu cầu người nhập liệu chọn đúng nhóm và xác định "Người đã trả tiền" (PaidBy). Ngay khi giao dịch được xác nhận, hệ thống tính toán lại tỷ lệ đóng góp của từng cá nhân so với tổng chi phí chung, từ đó hiển thị danh sách các khoản nợ hoặc số tiền cần thu hồi của từng thành viên.
+**1. Ghi nhận giao dịch cá nhân**
+- **Use case nghiệp vụ:** Ghi nhận giao dịch cá nhân
+- **Use case bắt đầu khi:** Người dùng có nhu cầu lưu lại một khoản thu hoặc chi vừa phát sinh trong thực tế. 
+- **Mục tiêu của use case là:** Lưu vết dòng tiền cá nhân một cách chính xác để hệ thống có dữ liệu phân tích thống kê.
+- **Các bước cơ bản:**
+  1. Người dùng truy cập ứng dụng và vào màn hình Thêm giao dịch.
+  2. Người dùng nhập các thông số: Số tiền, Danh mục, Ngày tháng và Ghi chú (nếu có).
+  3. Người dùng xác nhận lưu giao dịch.
+  4. Hệ thống ghi nhận dữ liệu vào cơ sở dữ liệu và tự động cập nhật lại tổng số dư cũng như biểu đồ thống kê.
+- **Các dòng thay thế:**
+  - *Tại bước 2:* Nếu người dùng nhập sai định dạng số tiền (hoặc số tiền <= 0), hệ thống sẽ cảnh báo đỏ và yêu cầu nhập lại, không cho phép lưu.
+
+**2. Quản lý chia sẻ chi phí nhóm**
+- **Use case nghiệp vụ:** Quản lý chia sẻ chi phí nhóm
+- **Use case bắt đầu khi:** Một nhóm người dùng (ví dụ: nhóm bạn đi du lịch, sinh viên ở chung) có phát sinh một khoản chi tiêu chung do một người đứng ra trả trước. 
+- **Mục tiêu của use case là:** Tự động chia đều chi phí và tính toán công nợ giữa các thành viên một cách bình đẳng.
+- **Các bước cơ bản:**
+  1. Người dùng tạo một không gian Nhóm và thêm các thành viên khác vào nhóm thông qua email/ID.
+  2. Bất kỳ thành viên nào trong nhóm cũng có thể truy cập vào Nhóm và tiến hành thêm Giao dịch nhóm.
+  3. Người dùng nhập số tiền, chọn người đã trả tiền (PaidBy) và lưu lại.
+  4. Hệ thống tính toán chia đều chi phí cho tất cả thành viên trong nhóm.
+  5. Hệ thống hiển thị bảng công nợ (Ai nợ ai bao nhiêu tiền) ngay trên màn hình chi tiết nhóm để mọi người cùng thấy.
+- **Các dòng thay thế:**
+  - *Tại bước 1:* Nếu người dùng mời một người chưa có tài khoản trên hệ thống, hệ thống sẽ yêu cầu người đó tải app và đăng nhập trước.
+
+**3. Tham vấn tài chính tự động**
+- **Use case nghiệp vụ:** Tham vấn tài chính tự động
+- **Use case bắt đầu khi:** Người dùng gặp khó khăn trong việc lập kế hoạch chi tiêu hoặc cần lời khuyên về thói quen tài chính. 
+- **Mục tiêu của use case là:** Cung cấp các lời khuyên thông minh, phản hồi ngay lập tức để hỗ trợ quyết định tài chính của người dùng thông qua AI.
+- **Các bước cơ bản:**
+  1. Người dùng mở giao diện Chatbot AI trong ứng dụng.
+  2. Người dùng nhập câu hỏi (ví dụ: "Làm sao để tiết kiệm tiền ăn tháng này?").
+  3. Hệ thống gửi câu hỏi đến dịch vụ AI.
+  4. AI xử lý, sinh ra lời khuyên phù hợp và hệ thống hiển thị câu trả lời lên màn hình dạng bong bóng chat.
+- **Các dòng thay thế:**
+  - *Tại bước 3:* Nếu hệ thống mất kết nối mạng, Chatbot sẽ hiển thị thông báo lỗi kết nối và yêu cầu người dùng thử lại sau.
+
+**4. Lập và theo dõi mục tiêu tiết kiệm**
+- **Use case nghiệp vụ:** Lập và theo dõi mục tiêu tiết kiệm
+- **Use case bắt đầu khi:** Người dùng muốn để dành một khoản tiền cho mục đích cụ thể (ví dụ: Mua xe, Đi du lịch). 
+- **Mục tiêu của use case là:** Giúp người dùng tạo mục tiêu và theo dõi tiến độ tích lũy theo thời gian.
+- **Các bước cơ bản:**
+  1. Người dùng truy cập chức năng Mục tiêu tiết kiệm và chọn "Tạo mới".
+  2. Người dùng nhập tên mục tiêu, số tiền cần đạt và ngày đến hạn.
+  3. Hệ thống lưu mục tiêu và khởi tạo tiến độ ở mức 0%.
+  4. Hàng tuần/tháng, người dùng cập nhật số tiền đã tích lũy thêm.
+  5. Hệ thống tính toán lại % hoàn thành và hiển thị thanh tiến độ (Progress bar).
+- **Các dòng thay thế:**
+  - *Tại bước 4:* Nếu số tiền tích lũy vượt quá mục tiêu, hệ thống sẽ chúc mừng người dùng đã hoàn thành mục tiêu sớm hạn.
 
 ## 2.3. MÔ HÌNH HÓA CHỨC NĂNG
 

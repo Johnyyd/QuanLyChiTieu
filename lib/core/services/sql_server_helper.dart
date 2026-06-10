@@ -1,55 +1,76 @@
-import 'package:mssql_connection/mssql_connection.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class SqlServerHelper {
   static final SqlServerHelper instance = SqlServerHelper._init();
-  MssqlConnection? _connection;
+  
+  // URL của Backend API Node.js đang chạy trên máy tính
+  // Lưu ý: 10.0.2.2 là localhost của máy tính khi dùng Android Emulator
+  // Hoặc dùng IP Wi-Fi (vd: 192.168.100.160) nếu dùng điện thoại thật (Redmi Note 8 Pro)
+  static const String baseUrl = 'http://192.168.100.160:3000'; 
 
   SqlServerHelper._init();
 
-  Future<MssqlConnection> get connection async {
-    if (_connection != null) return _connection!;
-    _connection = await _connectToDb();
-    return _connection!;
-  }
-
-  Future<MssqlConnection> _connectToDb() async {
-    final conn = MssqlConnection.getInstance();
-
-    // Thay thế bằng thông tin thật của SQL Server của bạn
-    await conn.connect(
-      ip: '192.168.100.160', // Đã cập nhật thành IP Wi-Fi của máy tính bạn
-      port: '1434', // Đã đổi sang 1434 do 1433 bị trùng
-      databaseName: 'QuanLyChiTieuDB', 
-      username: 'sa', 
-      password: 'QuanLyChiTieu@2026',
-      timeoutInSeconds: 15,
-    );
-
-    return conn;
-  }
-
-  Future<void> disconnect() async {
-    if (_connection != null) {
-      // Package mssql_connection quản lý kết nối tự động hoặc có thể disconnect tuỳ version
-      // Nếu có hàm disconnect thì gọi ở đây
-    }
-  }
-
   // Hàm thực thi Query (Dành cho SELECT)
   Future<String> executeQuery(String query) async {
-    final conn = await connection;
-    return await conn.getData(query);
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/query'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'query': query}),
+      );
+
+      if (response.statusCode == 200) {
+        return response.body; // Trả về chuỗi JSON của kết quả
+      } else {
+        throw Exception('API Error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error executing query via API: $e');
+      rethrow;
+    }
   }
 
   // Hàm thực thi lệnh thay đổi dữ liệu (INSERT, UPDATE, DELETE)
   Future<String> executeWrite(String query) async {
-    final conn = await connection;
-    return await conn.writeData(query);
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/execute'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'query': query}),
+      );
+
+      if (response.statusCode == 200) {
+        return response.body; // Trả về chuỗi JSON
+      } else {
+        throw Exception('API Error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error executing write via API: $e');
+      rethrow;
+    }
   }
   
   // Lệnh có tham số chống SQL Injection
   Future<String> executeWriteWithParams(String query, Map<String, dynamic> params) async {
-    final conn = await connection;
-    return await conn.writeDataWithParams(query, params);
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/execute'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'query': query,
+          'params': params,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        return response.body; // Trả về chuỗi JSON
+      } else {
+        throw Exception('API Error: ${response.statusCode} - ${response.body}');
+      }
+    } catch (e) {
+      print('Error executing write with params via API: $e');
+      rethrow;
+    }
   }
 }

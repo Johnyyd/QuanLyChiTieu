@@ -129,6 +129,74 @@ class AuthService {
     }
   }
 
+  Future<void> updateDisplayName(String newName) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      await user.updateDisplayName(newName);
+      try {
+        await _firestore.collection('users').doc(user.uid).set({
+          'displayName': newName,
+        }, SetOptions(merge: true));
+      } catch (e) {
+        print('Warning: Could not update Firestore: $e');
+      }
+      await _syncUserToSql(user, displayNameOverride: newName);
+    }
+  }
+
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    final user = _auth.currentUser;
+    if (user != null && user.email != null) {
+      // Re-authenticate first
+      final credential = EmailAuthProvider.credential(
+        email: user.email!,
+        password: currentPassword,
+      );
+      await user.reauthenticateWithCredential(credential);
+      // Change password
+      await user.updatePassword(newPassword);
+    } else {
+      throw Exception('Không tìm thấy tài khoản để đổi mật khẩu');
+    }
+  }
+
+  Future<void> deleteAccount(String? currentPassword) async {
+    final user = _auth.currentUser;
+    if (user != null) {
+      if (user.providerData.any((userInfo) => userInfo.providerId == 'password')) {
+        if (currentPassword == null || currentPassword.isEmpty) {
+            throw Exception('Vui lòng nhập mật khẩu hiện tại để xác nhận xoá tài khoản');
+        }
+        final credential = EmailAuthProvider.credential(
+          email: user.email!,
+          password: currentPassword,
+        );
+        await user.reauthenticateWithCredential(credential);
+      }
+      
+      final uid = user.uid;
+      
+      // Delete from SQL Server
+      final query = 'DELETE FROM Users WHERE Id = @id';
+      try {
+        await SqlServerHelper.instance.executeWriteWithParams(query, {'id': uid});
+      } catch (e) {
+        print('Error deleting user from SQL: $e');
+      }
+
+      // Delete from Firestore
+      try {
+        await _firestore.collection('users').doc(uid).delete();
+      } catch (e) {
+        print('Error deleting user from Firestore: $e');
+      }
+      
+      // Delete from Firebase Auth
+      await user.delete();
+      await GoogleSignIn().signOut();
+    }
+  }
+
   Future<void> signOut() async {
     await _auth.signOut();
     await GoogleSignIn().signOut();
