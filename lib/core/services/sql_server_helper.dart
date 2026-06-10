@@ -6,8 +6,8 @@ class SqlServerHelper {
   
   // URL của Backend API Node.js đang chạy trên máy tính
   // Lưu ý: 10.0.2.2 là localhost của máy tính khi dùng Android Emulator
-  // Hoặc dùng IP Wi-Fi (vd: 192.168.100.160) nếu dùng điện thoại thật (Redmi Note 8 Pro)
-  static const String baseUrl = 'http://192.168.100.160:3000'; 
+  // Sử dụng ngrok URL để có thể truy cập từ mọi mạng Wi-Fi và 4G
+  static const String baseUrl = 'https://porter-unhittable-synovially.ngrok-free.dev'; 
 
   SqlServerHelper._init();
 

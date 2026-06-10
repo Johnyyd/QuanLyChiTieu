@@ -28,11 +28,6 @@ final userProfileProvider = FutureProvider.family<UserProfile?, String>((ref, ui
     final query = "SELECT Id, DisplayName, Email FROM Users WHERE Id = '\$uid'";
     final resultStr = await SqlServerHelper.instance.executeQuery(query);
     
-    // Kiểm tra và parse kết quả JSON
-    if (resultStr.trim().isEmpty || resultStr == '[]') {
-      return null;
-    }
-    
     final List<dynamic> resultList = jsonDecode(resultStr);
     if (resultList.isNotEmpty) {
       final data = resultList.first as Map<String, dynamic>;

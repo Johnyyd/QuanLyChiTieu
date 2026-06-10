@@ -53,6 +53,7 @@ class AuthService {
       });
     } catch (e) {
       print('Error syncing user to SQL Server: $e');
+      throw Exception('Không thể đồng bộ với SQL Server: $e');
     }
   }
 

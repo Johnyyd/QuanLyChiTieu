@@ -9,11 +9,11 @@ import '../../../core/providers/settings_provider.dart';
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
-  void _showEditNameDialog(BuildContext context, WidgetRef ref, String currentName) {
+  void _showEditNameDialog(BuildContext parentContext, WidgetRef ref, String currentName) {
     final controller = TextEditingController(text: currentName == 'Chưa cập nhật tên' ? '' : currentName);
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Cập nhật tên hiển thị'),
           content: TextField(
@@ -26,18 +26,18 @@ class ProfileScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
               onPressed: () async {
                 final newName = controller.text.trim();
                 if (newName.isNotEmpty && newName != currentName) {
-                  Navigator.pop(context); // Close dialog first
+                  Navigator.pop(dialogContext); // Close dialog first
                   try {
                     await ref.read(authProvider).updateDisplayName(newName);
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (parentContext.mounted) {
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
                         const SnackBar(content: Text('Cập nhật tên thành công!')),
                       );
                       final user = ref.read(authStateProvider).value;
@@ -46,14 +46,14 @@ class ProfileScreen extends ConsumerWidget {
                       }
                     }
                   } catch (e) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
+                    if (parentContext.mounted) {
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
                         SnackBar(content: Text('Lỗi cập nhật tên: $e')),
                       );
                     }
                   }
                 } else {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                 }
               },
               child: const Text('Lưu'),
@@ -64,14 +64,14 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showChangePasswordDialog(BuildContext context, WidgetRef ref) {
+  void _showChangePasswordDialog(BuildContext parentContext, WidgetRef ref) {
     final currentPasswordController = TextEditingController();
     final newPasswordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
     
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Đổi mật khẩu'),
           content: SingleChildScrollView(
@@ -100,7 +100,7 @@ class ProfileScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
@@ -110,23 +110,23 @@ class ProfileScreen extends ConsumerWidget {
                 final confirmPass = confirmPasswordController.text;
 
                 if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Vui lòng nhập đầy đủ thông tin')));
                   return;
                 }
                 if (newPass != confirmPass) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mật khẩu mới không khớp')));
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Mật khẩu mới không khớp')));
                   return;
                 }
 
-                Navigator.pop(context); // Close dialog first
+                Navigator.pop(dialogContext); // Close dialog first
                 try {
                   await ref.read(authProvider).changePassword(currentPass, newPass);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!')));
+                  if (parentContext.mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(const SnackBar(content: Text('Đổi mật khẩu thành công!')));
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                  if (parentContext.mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
                   }
                 }
               },
@@ -138,12 +138,12 @@ class ProfileScreen extends ConsumerWidget {
     );
   }
 
-  void _showDeleteAccountDialog(BuildContext context, WidgetRef ref, bool requiresPassword) {
+  void _showDeleteAccountDialog(BuildContext parentContext, WidgetRef ref, bool requiresPassword) {
     final passwordController = TextEditingController();
     
     showDialog(
-      context: context,
-      builder: (context) {
+      context: parentContext,
+      builder: (dialogContext) {
         return AlertDialog(
           title: const Text('Xoá tài khoản', style: TextStyle(color: Colors.red)),
           content: Column(
@@ -166,26 +166,26 @@ class ProfileScreen extends ConsumerWidget {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Hủy'),
             ),
             ElevatedButton(
               onPressed: () async {
                 final password = passwordController.text;
                 if (requiresPassword && password.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Vui lòng nhập mật khẩu')));
+                  ScaffoldMessenger.of(dialogContext).showSnackBar(const SnackBar(content: Text('Vui lòng nhập mật khẩu')));
                   return;
                 }
 
-                Navigator.pop(context); // Close dialog first
+                Navigator.pop(dialogContext); // Close dialog first
                 try {
                   await ref.read(authProvider).deleteAccount(requiresPassword ? password : null);
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã xoá tài khoản thành công')));
+                  if (parentContext.mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(const SnackBar(content: Text('Đã xoá tài khoản thành công')));
                   }
                 } catch (e) {
-                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
+                  if (parentContext.mounted) {
+                    ScaffoldMessenger.of(parentContext).showSnackBar(SnackBar(content: Text('Lỗi: $e')));
                   }
                 }
               },
