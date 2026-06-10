@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/services/export_service.dart';
+import '../../personal/providers/personal_provider.dart';
 
 class ReportScreen extends ConsumerStatefulWidget {
   const ReportScreen({super.key});
@@ -85,18 +86,22 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
         ],
       ),
       body: groupsAsync.when(
-        data: (groups) {
-          if (groups.isEmpty) {
-            return const Center(child: Text('Bạn chưa tham gia nhóm nào.'));
-          }
+        data: (groupList) {
+          return ref.watch(personalGroupFutureProvider).when(
+            data: (personalGroup) {
+              final groups = [if (personalGroup != null) personalGroup, ...groupList];
 
-          if (selectedGroupId == null || !groups.any((g) => g.id == selectedGroupId)) {
-            selectedGroupId = groups.first.id;
-          }
+              if (groups.isEmpty) {
+                return const Center(child: Text('Bạn chưa có dữ liệu ví cá nhân hoặc nhóm.'));
+              }
 
-          return Column(
-            children: [
-              Container(
+              if (selectedGroupId == null || !groups.any((g) => g.id == selectedGroupId)) {
+                selectedGroupId = groups.first.id;
+              }
+
+              return Column(
+                children: [
+                  Container(
                 color: Colors.white,
                 padding: const EdgeInsets.all(16.0),
                 child: Row(
@@ -166,6 +171,10 @@ class _ReportScreenState extends ConsumerState<ReportScreen> {
                     ),
               ),
             ],
+          );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, st) => Center(child: Text('Lỗi tải ví cá nhân: $e')),
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -308,9 +317,9 @@ class _AdvancedReportChart extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // 2. Biểu đồ đường (Xu hướng chi tiêu)
-              if (totalExpense > 0) ...[
-                const Text('Xu hướng chi tiêu', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              // 2. Biểu đồ đường (Xu hướng thu chi)
+              if (totalExpense > 0 || totalIncome > 0) ...[
+                const Text('Xu hướng thu chi', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                 const SizedBox(height: 24),
                 SizedBox(
                   height: 200,
@@ -441,6 +450,7 @@ class _AdvancedReportChart extends ConsumerWidget {
 
   Widget _buildLineChart(List<Expense> expenses, String timeRange, BuildContext context) {
     final Map<int, double> groupedExpenses = {};
+    final Map<int, double> groupedIncomes = {};
     final now = DateTime.now();
     final isAllTime = timeRange == 'Tất cả';
     int maxX = isAllTime ? 12 : 31;
@@ -454,28 +464,34 @@ class _AdvancedReportChart extends ConsumerWidget {
     }
 
     for (var e in expenses) {
+      int key = isAllTime ? e.date.month : e.date.day;
       if (e.type == 'expense') {
-        int key = isAllTime ? e.date.month : e.date.day;
         groupedExpenses[key] = (groupedExpenses[key] ?? 0) + e.amount;
+      } else if (e.type == 'income') {
+        groupedIncomes[key] = (groupedIncomes[key] ?? 0) + e.amount;
       }
     }
     
-    final List<FlSpot> spots = [];
-    double maxExpense = 0;
+    final List<FlSpot> expenseSpots = [];
+    final List<FlSpot> incomeSpots = [];
+    double maxAmount = 0;
     for (int i = 1; i <= maxX; i++) {
-      double val = groupedExpenses[i] ?? 0;
-      if (val > maxExpense) maxExpense = val;
-      spots.add(FlSpot(i.toDouble(), val));
+      double expVal = groupedExpenses[i] ?? 0;
+      double incVal = groupedIncomes[i] ?? 0;
+      if (expVal > maxAmount) maxAmount = expVal;
+      if (incVal > maxAmount) maxAmount = incVal;
+      expenseSpots.add(FlSpot(i.toDouble(), expVal));
+      incomeSpots.add(FlSpot(i.toDouble(), incVal));
     }
 
-    if (maxExpense == 0) maxExpense = 100000;
+    if (maxAmount == 0) maxAmount = 100000;
 
     return LineChart(
       LineChartData(
         gridData: FlGridData(
           show: true,
           drawVerticalLine: false,
-          horizontalInterval: maxExpense > 0 ? (maxExpense / 4) : 100000,
+          horizontalInterval: maxAmount > 0 ? (maxAmount / 4) : 100000,
           getDrawingHorizontalLine: (value) {
             return FlLine(
               color: Colors.grey.withValues(alpha: 0.2),
@@ -507,7 +523,7 @@ class _AdvancedReportChart extends ConsumerWidget {
         minX: 1,
         maxX: maxX.toDouble(),
         minY: 0,
-        maxY: maxExpense * 1.2,
+        maxY: maxAmount * 1.2,
         lineTouchData: LineTouchData(
           touchTooltipData: LineTouchTooltipData(
             getTooltipColor: (touchedSpot) => Theme.of(context).colorScheme.primaryContainer,
@@ -525,7 +541,7 @@ class _AdvancedReportChart extends ConsumerWidget {
         ),
         lineBarsData: [
           LineChartBarData(
-            spots: spots,
+            spots: expenseSpots,
             isCurved: true,
             color: Theme.of(context).colorScheme.primary,
             barWidth: 3,
@@ -537,6 +553,25 @@ class _AdvancedReportChart extends ConsumerWidget {
                 colors: [
                   Theme.of(context).colorScheme.primary.withValues(alpha: 0.3),
                   Theme.of(context).colorScheme.primary.withValues(alpha: 0.0),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+          LineChartBarData(
+            spots: incomeSpots,
+            isCurved: true,
+            color: Colors.green,
+            barWidth: 3,
+            isStrokeCapRound: true,
+            dotData: const FlDotData(show: false),
+            belowBarData: BarAreaData(
+              show: true,
+              gradient: LinearGradient(
+                colors: [
+                  Colors.green.withValues(alpha: 0.3),
+                  Colors.green.withValues(alpha: 0.0),
                 ],
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
