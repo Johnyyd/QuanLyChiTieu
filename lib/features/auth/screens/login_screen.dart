@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'register_screen.dart';
 import '../providers/auth_provider.dart';
 
@@ -77,6 +78,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   try {
                     await ref.read(authProvider).signInWithEmailPassword(email, password);
                     // Login successful, navigation handled by auth state listener
+                  } on FirebaseAuthException catch (e) {
+                    String message = 'Lỗi đăng nhập: ${e.message}';
+                    if (e.code == 'invalid-credential' || e.code == 'user-not-found' || e.code == 'wrong-password') {
+                      message = 'Tài khoản không tồn tại hoặc sai mật khẩu!';
+                    } else if (e.code == 'invalid-email') {
+                      message = 'Địa chỉ email không hợp lệ.';
+                    } else if (e.code == 'too-many-requests') {
+                      message = 'Đăng nhập sai quá nhiều lần. Vui lòng thử lại sau.';
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text(message)),
+                      );
+                    }
                   } catch (e) {
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
