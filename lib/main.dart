@@ -13,14 +13,16 @@ import 'core/theme/theme_provider.dart';
 import 'core/services/notification_service.dart';
 import 'core/services/auto_track_service.dart';
 import 'core/widgets/biometric_wrapper.dart';
-
+// import 'core/services/sql_server_helper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await dotenv.load(fileName: ".env");
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  
+  // Bạn có thể khởi tạo SqlServerHelper ở đây hoặc khi cần thiết
+  // await SqlServerHelper.instance.connection;
+
   final notificationService = NotificationService();
   await notificationService.init();
   await notificationService.requestPermissions();

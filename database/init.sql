@@ -1,0 +1,88 @@
+CREATE DATABASE QuanLyChiTieuDB;
+GO
+
+USE QuanLyChiTieuDB;
+GO
+
+-- 1. Bảng Users
+CREATE TABLE Users (
+    Id NVARCHAR(128) PRIMARY KEY,
+    DisplayName NVARCHAR(255),
+    Email NVARCHAR(255),
+    PasswordHash NVARCHAR(255) NOT NULL
+);
+GO
+
+-- 2. Bảng Groups
+CREATE TABLE Groups (
+    Id NVARCHAR(128) PRIMARY KEY,
+    Name NVARCHAR(255) NOT NULL,
+    CreatedAt DATETIME2 NOT NULL,
+    CreatedBy NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    Budget FLOAT NULL,
+    IsPersonal BIT NOT NULL DEFAULT 0
+);
+GO
+
+-- 3. Bảng GroupMembers
+CREATE TABLE GroupMembers (
+    GroupId NVARCHAR(128) FOREIGN KEY REFERENCES Groups(Id),
+    UserId NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    PRIMARY KEY (GroupId, UserId)
+);
+GO
+
+-- 4. Bảng Expenses
+CREATE TABLE Expenses (
+    Id NVARCHAR(128) PRIMARY KEY,
+    GroupId NVARCHAR(128) FOREIGN KEY REFERENCES Groups(Id),
+    Description NVARCHAR(500) NOT NULL,
+    Amount FLOAT NOT NULL,
+    Category NVARCHAR(255) NOT NULL,
+    PaidBy NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    ToUserId NVARCHAR(128) NULL FOREIGN KEY REFERENCES Users(Id),
+    Date DATETIME2 NOT NULL,
+    Type NVARCHAR(50) NOT NULL DEFAULT 'expense',
+    IsConfirmed BIT NOT NULL DEFAULT 1,
+    Currency NVARCHAR(10) NOT NULL DEFAULT 'VND',
+    OriginalAmount FLOAT NULL,
+    ExchangeRate FLOAT NOT NULL DEFAULT 1.0
+);
+GO
+
+-- 5. Bảng SavingsGoals
+CREATE TABLE SavingsGoals (
+    Id NVARCHAR(128) PRIMARY KEY,
+    UserId NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    Title NVARCHAR(255) NOT NULL,
+    TargetAmount FLOAT NOT NULL,
+    CurrentAmount FLOAT NOT NULL DEFAULT 0,
+    TargetDate DATETIME2 NULL,
+    Icon NVARCHAR(50) NOT NULL DEFAULT 'savings',
+    Color NVARCHAR(20) NOT NULL DEFAULT '#4CAF50'
+);
+GO
+
+-- 6. Bảng RecurringExpenses
+CREATE TABLE RecurringExpenses (
+    Id NVARCHAR(128) PRIMARY KEY,
+    GroupId NVARCHAR(128) FOREIGN KEY REFERENCES Groups(Id),
+    Description NVARCHAR(500) NOT NULL,
+    Amount FLOAT NOT NULL,
+    Category NVARCHAR(255) NOT NULL,
+    PaidBy NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    Frequency NVARCHAR(50) NOT NULL,
+    NextRunDate DATETIME2 NOT NULL,
+    IsActive BIT NOT NULL DEFAULT 1
+);
+GO
+
+-- 7. Bảng ChatMessages
+CREATE TABLE ChatMessages (
+    Id NVARCHAR(128) PRIMARY KEY,
+    UserId NVARCHAR(128) FOREIGN KEY REFERENCES Users(Id),
+    MessageText NVARCHAR(MAX) NOT NULL,
+    IsUser BIT NOT NULL DEFAULT 1,
+    CreatedAt DATETIME2 NOT NULL
+);
+GO

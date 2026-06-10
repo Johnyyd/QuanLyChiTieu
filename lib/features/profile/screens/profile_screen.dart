@@ -52,7 +52,7 @@ class ProfileScreen extends ConsumerWidget {
                       ListTile(
                         leading: Icon(Icons.person_outline, color: Theme.of(context).colorScheme.primary),
                         title: const Text('Tên hiển thị'),
-                        subtitle: Text(userProfile?.name ?? 'Không rõ', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text(userProfile?.name ?? user.displayName ?? 'Chưa cập nhật tên', style: const TextStyle(fontWeight: FontWeight.bold)),
                       ),
                       const Divider(),
                       ListTile(
