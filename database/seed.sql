@@ -43,3 +43,45 @@ INSERT INTO ChatMessages (Id, UserId, MessageText, IsUser, CreatedAt) VALUES
 ('chat_1', 'user_1', N'Tháng này tôi tiêu nhiều quá không?', 1, GETDATE()),
 ('chat_2', 'user_1', N'Bạn đã chi 150,000 VND trong nhóm cá nhân. Hiện tại chưa thấy dấu hiệu lãng phí lớn, hãy tiếp tục duy trì nhé!', 0, GETDATE());
 GO
+
+-- 8. Bảng Audit (Ghi log các khoản chi tiêu bị xóa)
+CREATE TABLE DeletedExpensesAudit (
+    AuditId INT IDENTITY(1,1) PRIMARY KEY,
+    ExpenseId NVARCHAR(128),
+    DeletedBy NVARCHAR(128),
+    Amount FLOAT,
+    DeletedAt DATETIME2 DEFAULT GETDATE()
+);
+GO
+
+-- 9. Trigger: Tự động ghi log khi có giao dịch chi tiêu bị xóa
+CREATE TRIGGER trg_AfterDeleteExpense
+ON Expenses
+AFTER DELETE
+AS
+BEGIN
+    INSERT INTO DeletedExpensesAudit (ExpenseId, DeletedBy, Amount)
+    SELECT Id, PaidBy, Amount FROM deleted;
+END;
+GO
+
+-- 10. Trigger: Cảnh báo và ngăn chặn nhập khoản chi tiêu với số tiền âm
+CREATE TRIGGER trg_PreventNegativeExpense
+ON Expenses
+INSTEAD OF INSERT
+AS
+BEGIN
+    -- Nếu có bản ghi nào có Amount <= 0 thì báo lỗi
+    IF EXISTS (SELECT 1 FROM inserted WHERE Amount <= 0)
+    BEGIN
+        RAISERROR (N'Số tiền chi tiêu phải lớn hơn 0!', 16, 1);
+        ROLLBACK TRANSACTION;
+    END
+    ELSE
+    BEGIN
+        INSERT INTO Expenses (Id, GroupId, Description, Amount, Category, PaidBy, ToUserId, Date, Type, IsConfirmed, Currency, OriginalAmount, ExchangeRate)
+        SELECT Id, GroupId, Description, Amount, Category, PaidBy, ToUserId, Date, Type, IsConfirmed, Currency, OriginalAmount, ExchangeRate
+        FROM inserted;
+    END
+END;
+GO
