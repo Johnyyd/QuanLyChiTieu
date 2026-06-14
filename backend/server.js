@@ -1,5 +1,5 @@
 const express = require('express');
-const sql = require('mssql');
+const sql = require('mssql/msnodesqlv8');
 const cors = require('cors');
 
 const app = express();
@@ -8,14 +8,11 @@ app.use(express.json());
 
 // Cấu hình kết nối SQL Server
 const config = {
-  user: 'sa',
-  password: 'QuanLyChiTieu@2026',
-  server: '127.0.0.1', // Kết nối tới localhost của Linux (chứa docker)
+  server: '(localdb)\\MSSQLLocalDB',
   database: 'QuanLyChiTieuDB',
-  port: 1434, // Đổi sang 1434 theo đúng mapping của Docker
+  driver: 'msnodesqlv8',
   options: {
-    encrypt: false, // Dành cho kết nối local
-    trustServerCertificate: true // Bỏ qua lỗi SSL
+    trustedConnection: true
   }
 };
 
